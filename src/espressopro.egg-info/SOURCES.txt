@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+src/espressopro.egg-info/PKG-INFO
+src/espressopro.egg-info/SOURCES.txt
+src/espressopro.egg-info/dependency_links.txt
+src/espressopro.egg-info/entry_points.txt
+src/espressopro.egg-info/requires.txt
+src/espressopro.egg-info/top_level.txt
+tests/test_annotation_auto_paths.py
+tests/test_automatic_paths.py
+tests/test_automatic_paths_simple.py
+tests/test_espressopro.py
+tests/test_paths.py
+tests/test_simple.py
