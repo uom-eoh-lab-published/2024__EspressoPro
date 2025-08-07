@@ -55,35 +55,6 @@ from .constants import (
 
 __version__ = "1.0.1"
 
-# Main entry point function for backward compatibility
-def annotate_query_pipeline(query_adata, models_path: Optional[str] = None, data_path: Optional[str] = None):
-    """
-    DEPRECATED: Use annotate_anndata() instead.
-    Main annotation pipeline - backward compatibility wrapper.
-    """
-    import warnings
-    warnings.warn(
-        "annotate_query_pipeline is deprecated. Use annotate_anndata() instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return annotate_anndata(query_adata, models_path, data_path)
-
-
-# For backward compatibility, also provide the old function name
-def annotate_query(query_adata, models_path: Optional[str] = None, data_path: Optional[str] = None):
-    """
-    DEPRECATED: Use annotate_anndata() instead.
-    Backward compatibility wrapper.
-    """
-    import warnings
-    warnings.warn(
-        "annotate_query is deprecated. Use annotate_anndata() instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-    return annotate_anndata(query_adata, models_path, data_path)
-
 __all__ = [
     # Core
     "load_models",

@@ -60,7 +60,7 @@ pip install git+https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 **Note**: 
 - The `gdown` package is included for automatic model downloading. 
 - MissionBio packages are optional and only required if you plan to use the MissionBio-specific functions.
-- If `SCUtils` is not available, EspressoPro will use built-in CLR (Centered Log Ratio) normalization as a fallback.
+- If `SCUtils` is not available, EspressoPro will use built-in CLR (Centered Log Ratio) + StandardScaler normalization as a fallback.
 
 ## 🚀 Quick Start
 

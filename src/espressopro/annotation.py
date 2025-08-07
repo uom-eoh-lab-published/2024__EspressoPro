@@ -12,40 +12,89 @@ import pandas as pd
 import scanpy as sc
 import anndata as ad
 from anndata import AnnData
-from scipy.sparse import csr_matrix, isspmatrix
+from scipy.sparse import csr_matrix, csc_matrix, isspmatrix, issparse
+from sklearn import preprocessing
+from warnings import warn
 
 from .core import load_models
 from .prediction import generate_predictions, add_best_localised_tracks
 from .constants import SIMPLIFIED_CLASSES, DETAILED_CLASSES, SIMPLIFIED_PARENT_MAP, DETAILED_PARENT_MAP
 
 
+def clr(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnData]:
+    """
+    Apply the centered log ratio (CLR) transformation
+    to normalize counts in adata.X.
+
+    Args:
+        adata: AnnData object with protein expression counts.
+        inplace: Whether to update adata.X inplace.
+        axis: Axis across which CLR is performed.
+    """
+
+    if axis not in [0, 1]:
+        raise ValueError("Invalid value for `axis` provided. Admissible options are `0` and `1`.")
+
+    if not inplace:
+        adata = adata.copy()
+
+    if issparse(adata.X) and axis == 0 and not isinstance(adata.X, csc_matrix):
+        warn("adata.X is sparse but not in CSC format. Converting to CSC.")
+        x = csc_matrix(adata.X)
+    elif issparse(adata.X) and axis == 1 and not isinstance(adata.X, csr_matrix):
+        warn("adata.X is sparse but not in CSR format. Converting to CSR.")
+        x = csr_matrix(adata.X)
+    else:
+        x = adata.X
+
+    if issparse(x):
+        x.data /= np.repeat(
+            np.exp(np.log1p(x).sum(axis=axis).A / x.shape[axis]), x.getnnz(axis=axis)
+        )
+        np.log1p(x.data, out=x.data)
+    else:
+        np.log1p(
+            x / np.exp(np.log1p(x).sum(axis=axis, keepdims=True) / x.shape[axis]),
+            out=x,
+        )
+
+    adata.X = x
+
+    return None if inplace else adata
+
+
 def Protein_normalization(x):
     '''
-    CLR normalize the input data using log1p and mean centering.
+    CLR normalize the input data using improved CLR transformation, followed by standard scaling.
 
     Parameters:
     x (array-like): The input data to be normalized. It can be a numpy array, a pandas DataFrame, or a sparse matrix.
 
     Returns:
-    numpy.ndarray: The normalized data.
+    numpy.ndarray: The normalized and scaled data.
 
     '''
     if isinstance(x, (pd.DataFrame, np.ndarray)) or isspmatrix(x):
-        # Convert to CSR matrix
-        x = csr_matrix(x)
+        # Create temporary AnnData for CLR transformation
+        temp_adata = ad.AnnData(X=x)
+        
+        # Apply improved CLR transformation
+        clr(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
+        
+        # Extract the CLR-transformed data
+        normalised_counts = temp_adata.X
+        
+        # Convert to dense array if sparse
+        if issparse(normalised_counts):
+            normalised_counts = normalised_counts.toarray()
+        
+        # Apply StandardScaler for feature scaling
+        scaler = preprocessing.StandardScaler()
+        data_scaled_standard = scaler.fit_transform(normalised_counts)
+        
+        return data_scaled_standard
     else:
         raise ValueError("Input x must be a numpy array, a pandas DataFrame, or a sparse matrix")
-    
-    # Apply log1p transformation to make the distribution more Gaussian-like
-    normalised_counts = np.log1p(x.astype(float))
-    
-    # Subtract the mean of each row
-    normalised_counts = normalised_counts - normalised_counts.mean(axis=1)[:, None]
-    
-    # Convert the result to a numpy array
-    normalised_counts = np.asarray(normalised_counts)
-    
-    return normalised_counts
 
 
 def _safe_mean(arrs: List[np.ndarray]) -> np.ndarray:
