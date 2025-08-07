@@ -8,14 +8,11 @@
 
 ## ✨ Key Features
 
-🚀 **Zero-Configuration**: Automatic path detection - no manual path setup required!  
 🧬 **Multi-level Annotation**: Hierarchical cell type annotation (Broad → Simplified → Detailed)  
-🤖 **Machine Learning**: Ensemble voting with multiple atlas references (Hao, Zhang, Triana, Luecken)  
-📊 **Localization-aware**: Best atlas selection based on spatial coherence  
-🔬 **MissionBio Integration**: Native support for MissionBio Mosaic platform  
-🎯 **Specialized Detection**: Mast cell detection using marker signatures  
-📈 **Analysis Tools**: Cluster-celltype relationship analysis and visualization  
-🧪 **Comprehensive Testing**: Professional test suite with multiple runners  
+🤖 **Machine Learning**: Prediction from pre-trained stacked models derived from multiple atlas references (Hao, Zhang, Triana, Luecken)  
+📊 **Coherent-predictions**: Best atlas selection based on latent dimension coherence 
+🎯 **Rare Cell-types Detection**: Mast and other cells detection using marker signatures  
+📈 **Analysis Tools**: Cluster-celltype relationship analysis and visualization 
 ⚡ **Easy to Use**: Simple one-line annotations with sensible defaults  
 
 ## Installation
@@ -51,7 +48,7 @@ import scanpy as sc
 # Load your single-cell data
 adata = sc.read_h5ad("your_data.h5ad")
 
-# That's it! One line annotation with automatic path detection
+# One line annotation with automatic path detection
 annotated_adata = ep.annotate_anndata(adata)
 
 # Access results at multiple levels
@@ -60,17 +57,6 @@ print(annotated_adata.obs['CommonBroad.Celltype'].value_counts())
 
 print("\nDetailed cell types:")
 print(annotated_adata.obs['CommonDetailed.Celltype'].value_counts())
-```
-
-### 🎛️ Advanced Usage (Custom Paths)
-
-```python
-# You can still specify custom paths if needed
-annotated_adata = ep.annotate_anndata(
-    adata, 
-    models_path="/path/to/models",
-    data_path="/path/to/shared_features"
-)
 ```
 
 ### 🔬 MissionBio Integration
@@ -154,33 +140,6 @@ adata_custom = ep.add_signature_annotation(
 - **`print_cluster_suggestions(suggestions)`**: Display cluster analysis results
 - **`visualize_cluster_celltype_frequencies(pivot_df)`**: Heatmap visualization
 
-## 📦 Package Structure
-
-```
-EspressoPro/
-├── src/
-│   ├── __init__.py          # Main package exports
-│   ├── core.py              # Model loading & automatic path detection
-│   ├── prediction.py        # Prediction & scoring algorithms
-│   ├── annotation.py        # Cell type annotation workflows  
-│   ├── missionbio.py        # MissionBio platform integration
-│   ├── markers.py           # Marker-based cell detection
-│   ├── constants.py         # Configuration & cell type mappings
-│   └── cli.py               # Command-line interface
-├── tests/                   # Comprehensive test suite
-│   ├── run_tests.py         # Simple test runner (no dependencies)
-│   ├── test_*.py            # Individual test modules
-│   └── README.md            # Test documentation
-├── Data/                    # Pre-trained models & shared features
-│   └── Pre_trained_models/
-│       └── TotalSeqD_Heme_Oncology_CAT399906/
-│           ├── Hao/         # Hao et al. atlas models
-│           ├── Zhang/       # Zhang et al. atlas models
-│           ├── Triana/      # Triana et al. atlas models
-│           └── Luecken/     # Luecken et al. atlas models
-└── examples/                # Usage examples and tutorials
-```
-
 ## 📋 Requirements
 
 ### Core Dependencies
@@ -207,21 +166,6 @@ EspressoPro/
 ### Platform Integration
 - **missionbio.mosaic-base**: ≥3.12.0 (tested with 3.12.2)
 
-### Optional Dependencies
-
-Install with specific features:
-
-```bash
-# Development tools (testing, linting, docs)
-pip install espressopro[dev]
-
-# Documentation generation
-pip install espressopro[docs]
-
-# All optional dependencies
-pip install espressopro[all]
-```
-
 ## 💻 Command Line Interface
 
 EspressoPro includes a convenient CLI for batch processing:
@@ -237,55 +181,6 @@ espressopro --query data.h5ad --models ./models --data ./data --out annotated.h5
 espressopro --help
 ```
 
-## 🧪 Testing
-
-EspressoPro includes a comprehensive test suite:
-
-### Quick Test (No Dependencies)
-```bash
-# Run core functionality tests
-python tests/run_tests.py
-
-# Run simple path detection test
-python tests/test_simple.py
-```
-
-### Full Test Suite (With pytest)
-```bash
-# Install pytest
-pip install pytest
-
-# Run all tests
-pytest tests/ -v
-
-# Run specific test categories  
-pytest tests/ -m "not slow" -v
-```
-
-### Test Categories
-- **Unit tests**: Core functionality, path detection
-- **Integration tests**: Full annotation pipelines
-- **Platform tests**: MissionBio integration
-- **Performance tests**: Large dataset handling
-
-## 🎯 Automatic Path Detection
-
-EspressoPro automatically finds your models and data - no configuration needed!
-
-### How It Works
-1. **Package Resources**: Checks installed package data
-2. **Relative Paths**: Finds development data structure
-3. **Fallback**: Uses provided custom paths
-
-### Manual Path Check
-```python
-import espressopro as ep
-
-# Check detected paths
-print("Models:", ep.get_default_models_path())
-print("Data:", ep.get_default_data_path())
-```
-
 ## 📖 Documentation
 
 - **Full Documentation**: [espressopro.readthedocs.io](https://espressopro.readthedocs.io)
@@ -299,9 +194,9 @@ EspressoPro implements hierarchical cell type annotation using multiple referenc
 
 ### Reference Atlases
 - **Hao et al.**: CITE-seq reference with comprehensive immune cell types
-- **Zhang et al.**: Multi-modal single-cell reference  
-- **Triana et al.**: Specialized hematopoietic reference
-- **Luecken et al.**: Benchmarked annotation reference
+- **Zhang et al.**: Multi-modal bone marrow single-cell reference atlas
+- **Triana et al.**: CD34+ enriched bone marrow hematopoietic reference atlas
+- **Luecken et al.**: CITE-seq and multiome bone marrow annotation reference atlas
 
 ### Annotation Levels
 1. **Broad**: Immature vs Mature cell distinction
