@@ -144,12 +144,17 @@ def Scale_protein_data(data, inplace: bool = True):
             # Convert to numpy array for StandardScaler (handles DataFrame column name issues)
             if isinstance(data, pd.DataFrame):
                 data_to_scale = data.values
+                # Apply StandardScaler for feature scaling
+                scaler = preprocessing.StandardScaler()
+                data_scaled_standard = scaler.fit_transform(data_to_scale)
+                # Return as DataFrame with original index and columns
+                return pd.DataFrame(data_scaled_standard, index=data.index, columns=data.columns)
             elif issparse(data):
                 data_to_scale = data.toarray()
             else:
                 data_to_scale = data
             
-            # Apply StandardScaler for feature scaling
+            # Apply StandardScaler for feature scaling (non-DataFrame inputs)
             scaler = preprocessing.StandardScaler()
             data_scaled_standard = scaler.fit_transform(data_to_scale)
             
