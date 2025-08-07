@@ -21,11 +21,8 @@
 ### From GitHub (recommended for latest features)
 
 ```bash
-# Install with automatic model downloading capability
-pip install git+https://github.com/EspressoKris/EspressoPro.git
-
-# Or install with all dependencies explicitly
-pip install git+https://github.com/EspressoKris/EspressoPro.git gdown
+# Install the latest version from GitHub
+pip install git+https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 ```
 
 ### From PyPI (when released)
@@ -37,12 +34,24 @@ pip install EspressoPro
 ### Development Installation
 
 ```bash
-git clone https://github.com/EspressoKris/EspressoPro.git
-cd EspressoPro
+git clone https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
+cd 2024__EspressoPro
 pip install -e ".[dev]"
 ```
 
-**Note**: The `gdown` package is required for automatic model downloading. If not installed, you'll see a helpful error message with installation instructions.
+### MissionBio Integration Requirements
+
+For MissionBio platform integration, you'll need to install the MissionBio packages separately:
+
+```bash
+# Install MissionBio packages (not available via pip)
+conda create -n mosaic -c missionbio -c conda-forge \
+             python=3.10 \
+             missionbio.mosaic-base=3.12.2 \
+             python-kaleido -y
+```
+
+**Note**: The `gdown` package is included for automatic model downloading. MissionBio packages are optional and only required if you plan to use the MissionBio-specific functions.
 
 ## 🚀 Quick Start
 
@@ -68,6 +77,13 @@ print(annotated_adata.obs['CommonDetailed.Celltype'].value_counts())
 ```
 
 ### 🔬 MissionBio Integration
+
+**Note**: Requires separate installation of MissionBio packages via conda.
+
+```bash
+# First install MissionBio packages
+conda install -c missionbio missionbio.mosaic
+```
 
 ```python
 import missionbio.mosaic as ms
@@ -176,7 +192,9 @@ adata_custom = ep.add_signature_annotation(
 - **scikit-learn**: ≥1.0.0 (pre-trained stacked models)
 
 ### Platform Integration
-- **missionbio.mosaic-base**: ≥3.12.0 (tested with 3.12.2)
+- **missionbio.mosaic**: ≥3.12.0 (tested with 3.12.2) - *Install via conda: `conda install -c missionbio missionbio.mosaic`*
+
+**Note**: MissionBio packages are not available via pip and must be installed separately using conda if you plan to use MissionBio-specific functionality.
 
 ## 💻 Command Line Interface
 
@@ -229,7 +247,7 @@ If you use EspressoPro in your research, please cite:
   author={Gurashi, Kristian and [Additional Authors]},
   year={2024},
   url={https://github.com/uom-eoh-lab-published/2024__EspressoPro},
-  version={1.0.0}
+  version={1.0.1}
 }
 ```
 
