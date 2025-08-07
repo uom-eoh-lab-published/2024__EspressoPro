@@ -15,21 +15,21 @@ echo "📂 Current directory: $(pwd)"
 # Run the main test runner
 echo ""
 echo "🔧 Running core functionality tests..."
-python tests/run_tests.py
+python run_tests.py
 
 # Run individual tests
 echo ""
 echo "🔧 Running simple path detection test..."
-python tests/test_simple.py
+python test_simple.py
 
 echo ""
 echo "🔧 Running automatic paths test (if pytest available)..."
 if command -v pytest &> /dev/null; then
     echo "✅ pytest found, running pytest..."
-    pytest tests/ -v --tb=short
+    pytest . -v --tb=short
 else
     echo "⚠️  pytest not found, running manual test..."
-    python tests/test_automatic_paths.py
+    python test_automatic_paths.py
 fi
 
 echo ""
