@@ -95,36 +95,67 @@ def Normalise_protein_data(data, inplace: bool = True, axis: int = 0):
         return x
 
 
-def Scale_protein_data(x):
+def Scale_protein_data(data, inplace: bool = True):
     """
-    CLR normalize the input data using improved CLR transformation, followed by standard scaling.
+    Apply StandardScaler to normalized protein data.
 
     Parameters
     ----------
-    x : array-like
-        The input data to be normalized. It can be a numpy array, 
-        a pandas DataFrame, or a sparse matrix.
+    data : AnnData or array-like
+        Can be either:
+            - AnnData object with normalized protein expression in .X
+            - Raw matrix/DataFrame (numpy array, pandas DataFrame, or sparse matrix)
+    inplace : bool, default True
+        Whether to update data inplace (only applies to AnnData objects)
 
     Returns
     -------
-    numpy.ndarray
-        The normalized and scaled data.
+        - If data is AnnData: None (if inplace=True) or AnnData copy (if inplace=False)
+        - If data is matrix/DataFrame: scaled numpy array
     """
-    if isinstance(x, (pd.DataFrame, np.ndarray)) or isspmatrix(x):
-        # Apply CLR transformation directly to the input data
-        normalised_counts = Normalise_protein_data(x, axis=1)  # CLR across features (axis=1)
+    from anndata import AnnData
+
+    # Handle AnnData input
+    if isinstance(data, AnnData):
+        adata = data
+        if not inplace:
+            adata = adata.copy()
+        x = adata.X
         
-        # Convert to dense array if sparse
-        if issparse(normalised_counts):
-            normalised_counts = normalised_counts.toarray()
-        
-        # Apply StandardScaler for feature scaling
+        # Convert to numpy array for StandardScaler
+        if isinstance(x, pd.DataFrame):
+            data_to_scale = x.values
+        elif issparse(x):
+            data_to_scale = x.toarray()
+        else:
+            data_to_scale = x
+            
+        # Apply StandardScaler
         scaler = preprocessing.StandardScaler()
-        data_scaled_standard = scaler.fit_transform(normalised_counts)
+        scaled_data = scaler.fit_transform(data_to_scale)
         
-        return data_scaled_standard
+        # Update AnnData
+        adata.X = scaled_data
+        return None if inplace else adata
+        
+    # Handle raw matrix/DataFrame input
     else:
-        raise ValueError("Input x must be a numpy array, a pandas DataFrame, or a sparse matrix")
+        if isinstance(data, (pd.DataFrame, np.ndarray)) or isspmatrix(data):
+            # Convert to numpy array for StandardScaler (handles DataFrame column name issues)
+            if isinstance(data, pd.DataFrame):
+                data_to_scale = data.values
+            elif issparse(data):
+                data_to_scale = data.toarray()
+            else:
+                data_to_scale = data
+            
+            # Apply StandardScaler for feature scaling
+            scaler = preprocessing.StandardScaler()
+            data_scaled_standard = scaler.fit_transform(data_to_scale)
+            
+            return data_scaled_standard
+        else:
+            raise ValueError("Input data must be an AnnData object, numpy array, pandas DataFrame, or sparse matrix")
 
 
 def _safe_mean(arrs: List[np.ndarray]) -> np.ndarray:
