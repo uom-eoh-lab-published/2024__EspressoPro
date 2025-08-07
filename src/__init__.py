@@ -53,7 +53,7 @@ from .constants import (
     DETAILED_PARENT_MAP
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Main entry point function for backward compatibility
 def annotate_query_pipeline(query_adata, models_path: Optional[str] = None, data_path: Optional[str] = None):
