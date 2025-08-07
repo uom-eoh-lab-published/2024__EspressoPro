@@ -17,11 +17,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic annotation (automatic paths)
+  # Basic annotation (automatic model download & paths)
   espressopro --query data.h5ad --out annotated.h5ad
-  
-  # Custom paths
-  espressopro --query data.h5ad --models ./models --data ./data --out annotated.h5ad
         """
     )
     
@@ -38,8 +35,8 @@ Examples:
 
     print("🧬 EspressoPro: Starting cell type annotation...")
     print(f"   Query: {args.query}")
-    print(f"   Models: {args.models or 'auto-detect'}")
-    print(f"   Data: {args.data or 'auto-detect'}")
+    print(f"   Models: {args.models or 'auto-download'}")
+    print(f"   Data: {args.data or 'auto-download'}")
     print(f"   Output: {args.out}")
 
     # Load and annotate

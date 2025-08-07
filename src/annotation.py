@@ -209,6 +209,8 @@ def annotate_anndata(
     """
     Main annotation pipeline driver.
     
+    Models are automatically downloaded on first use (~400MB).
+    
     Parameters
     ----------
     query_adata : AnnData
@@ -223,7 +225,14 @@ def annotate_anndata(
     AnnData
         Fully annotated AnnData object
     """
-    from .core import get_default_models_path, get_default_data_path
+    from .core import get_default_models_path, get_default_data_path, ensure_models_available
+    
+    # Ensure models are available (download if needed)
+    print("[annotate_anndata] Checking model availability...")
+    try:
+        ensure_models_available()
+    except Exception as e:
+        print(f"[annotate_anndata] Warning: Could not ensure models available: {e}")
     
     # Use default paths if not provided
     if models_path is None:
@@ -265,6 +274,8 @@ def annotate_counts_matrix(
     """
     Annotate a CSV count matrix by adding cell type annotation columns directly to the file.
     
+    Models are automatically downloaded on first use (~400MB).
+    
     Parameters
     ----------
     csv : Union[str, Path]
@@ -293,7 +304,14 @@ def annotate_counts_matrix(
     ...     data_path="/path/to/data"
     ... )
     """
-    from .core import get_default_models_path, get_default_data_path
+    from .core import get_default_models_path, get_default_data_path, ensure_models_available
+    
+    # Ensure models are available (download if needed)
+    print("[annotate_counts_matrix] Checking model availability...")
+    try:
+        ensure_models_available()
+    except Exception as e:
+        print(f"[annotate_counts_matrix] Warning: Could not ensure models available: {e}")
     
     # Use default paths if not provided
     if models_path is None:

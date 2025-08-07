@@ -33,6 +33,8 @@ def annotate_missionbio_sample(
     """
     Annotate a MissionBio Sample object using protein read counts.
     
+    Models are automatically downloaded on first use (~400MB).
+    
     Parameters
     ----------
     sample : missionbio.mosaic.Sample
@@ -101,6 +103,14 @@ def annotate_missionbio_sample(
     # Extract data
     if not hasattr(sample, 'protein') or sample.protein is None:
         raise ValueError("Sample must have a protein assay")
+    
+    # Ensure models are available (download if needed)
+    print("[annotate_missionbio_sample] Checking model availability...")
+    try:
+        from .core import ensure_models_available
+        ensure_models_available()
+    except Exception as e:
+        print(f"[annotate_missionbio_sample] Warning: Could not ensure models available: {e}")
     
     print("[annotate_missionbio_sample] Extracting protein read counts...")
     
