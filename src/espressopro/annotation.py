@@ -21,78 +21,85 @@ from .prediction import generate_predictions, add_best_localised_tracks
 from .constants import SIMPLIFIED_CLASSES, DETAILED_CLASSES, SIMPLIFIED_PARENT_MAP, DETAILED_PARENT_MAP
 
 
-def Normalise_protein_data(data, inplace: bool = True, axis: int = 0):
+def Normalise_protein_data(data, inplace: bool = True, jitter: float = 0.01, random_state: int = 42, scale: bool = True):
     """
-    Apply the centered log ratio (CLR) transformation to normalize counts.
-    From Muon package (credit: https://github.com/muonlab/muon)
+    Apply MissionBio NSP (Noise Signal Processing) normalization to protein counts.
+    Falls back to CLR transformation if NSP is not available.
 
     Args:
         data: Can be either:
             - AnnData object with protein expression counts in .X
             - Raw matrix/DataFrame (numpy array, pandas DataFrame, or sparse matrix)
         inplace: Whether to update data inplace (only applies to AnnData objects)
-        axis: Axis across which CLR is performed (0=samples, 1=features)
+        jitter: Jitter parameter for NSP normalization
+        random_state: Random state for reproducibility
+        scale: Whether to apply scaling in NSP
         
     Returns:
         - If data is AnnData: None (if inplace=True) or AnnData copy (if inplace=False)
-        - If data is matrix/DataFrame: CLR-transformed array
+        - If data is matrix/DataFrame: normalized array/DataFrame
     """
     from anndata import AnnData
 
-    if axis not in [0, 1]:
-        raise ValueError("Invalid value for `axis` provided. Admissible options are `0` and `1`.")
-
-    # Handle AnnData input (original behavior)
+    # Handle AnnData input
     if isinstance(data, AnnData):
         adata = data
         if not inplace:
             adata = adata.copy()
         x = adata.X
-    # Handle raw matrix/DataFrame input (new functionality)
+    # Handle raw matrix/DataFrame input
     else:
         if isinstance(data, (pd.DataFrame, np.ndarray)) or isspmatrix(data):
             x = data
         else:
             raise ValueError("Input data must be an AnnData object, numpy array, pandas DataFrame, or sparse matrix")
 
-    # Ensure proper sparse matrix format for the given axis
-    if issparse(x) and axis == 0 and not isinstance(x, csc_matrix):
-        warn("Input is sparse but not in CSC format. Converting to CSC.")
-        x = csc_matrix(x)
-    elif issparse(x) and axis == 1 and not isinstance(x, csr_matrix):
-        warn("Input is sparse but not in CSR format. Converting to CSR.")
-        x = csr_matrix(x)
-
-    # Apply CLR transformation
-    if issparse(x):
-        x.data /= np.repeat(
-            np.exp(np.log1p(x).sum(axis=axis).A / x.shape[axis]), x.getnnz(axis=axis)
-        )
-        np.log1p(x.data, out=x.data)
+    # Convert to numpy array for processing
+    if isinstance(x, pd.DataFrame):
+        x_array = x.values.astype(np.float64)
+        is_dataframe = True
+        df_index, df_columns = x.index, x.columns
+    elif issparse(x):
+        x_array = x.toarray().astype(np.float64)
+        is_dataframe = False
     else:
-        # Handle pandas DataFrame separately due to keepdims parameter issue
-        if isinstance(x, pd.DataFrame):
-            # Convert to numpy for CLR calculation, ensuring float dtype
-            x_values = x.values.astype(np.float64)
-            x_values = np.log1p(
-                x_values / np.exp(np.log1p(x_values).sum(axis=axis, keepdims=True) / x_values.shape[axis])
-            )
-            x = pd.DataFrame(x_values, index=x.index, columns=x.columns)
-        else:
-            # Standard numpy array handling - ensure float type
-            if x.dtype.kind in ['i', 'u']:  # integer types
-                x = x.astype(np.float64)
-            np.log1p(
-                x / np.exp(np.log1p(x).sum(axis=axis, keepdims=True) / x.shape[axis]),
-                out=x,
-            )
+        x_array = np.array(x, dtype=np.float64)
+        is_dataframe = False
+
+    # Try MissionBio NSP normalization first
+    try:
+        from missionbio.demultiplex.protein.nsp import NSP
+        
+        nsp = NSP(jitter=jitter, random_state=random_state)
+        normalized_data = nsp.transform(x_array, scale=scale)
+        
+        print("[Normalise_protein_data] Applied MissionBio NSP normalization")
+        
+    except ImportError:
+        warn("MissionBio package not available. Falling back to CLR normalization.")
+        # Fallback to CLR transformation
+        normalized_data = np.log1p(
+            x_array / np.exp(np.log1p(x_array).sum(axis=0, keepdims=True) / x_array.shape[0])
+        )
+        print("[Normalise_protein_data] Applied CLR normalization (fallback)")
+        
+    except Exception as e:
+        warn(f"NSP normalization failed ({e}). Falling back to CLR normalization.")
+        # Fallback to CLR transformation
+        normalized_data = np.log1p(
+            x_array / np.exp(np.log1p(x_array).sum(axis=0, keepdims=True) / x_array.shape[0])
+        )
+        print("[Normalise_protein_data] Applied CLR normalization (fallback)")
 
     # Return based on input type
     if isinstance(data, AnnData):
-        data.X = x
+        data.X = normalized_data
         return None if inplace else data
     else:
-        return x
+        if is_dataframe:
+            return pd.DataFrame(normalized_data, index=df_index, columns=df_columns)
+        else:
+            return normalized_data
 
 
 def Scale_protein_data(data, inplace: bool = True):

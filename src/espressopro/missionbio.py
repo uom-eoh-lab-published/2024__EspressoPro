@@ -161,9 +161,9 @@ def annotate_missionbio_sample(
     print("[annotate_missionbio_sample] Applying protein normalization...")
     
     try:
-        # First apply CLR normalization to protein data
-        Normalise_protein_data(adata, inplace=True)
-        print("[annotate_missionbio_sample] CLR normalization completed successfully")
+        # Apply MissionBio NSP normalization (includes scaling)
+        Normalise_protein_data(adata, inplace=True, jitter=0.01, random_state=42, scale=True)
+        print("[annotate_missionbio_sample] NSP normalization completed successfully")
     except Exception as e:
         print(f"[annotate_missionbio_sample] WARNING: Normalization failed ({e}), using raw data")
         # Keep original data if normalization fails
