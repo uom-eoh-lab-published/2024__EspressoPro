@@ -21,8 +21,6 @@ from .markers import add_mast_annotation, add_signature_annotation
 
 def annotate_missionbio_sample(
     sample,
-    models_path: Optional[Union[str, Path]] = None,
-    data_path: Optional[Union[str, Path]] = None,
     *,
     protein_norm_fn=None,
     add_mast: bool = True,
@@ -39,10 +37,6 @@ def annotate_missionbio_sample(
     ----------
     sample : missionbio.mosaic.Sample
         MissionBio sample object with protein assay
-    models_path : Optional[Union[str, Path]], default None
-        Path to pre-trained models directory. If None, uses package default.
-    data_path : Optional[Union[str, Path]], default None  
-        Path to shared features directory. If None, uses package default.
     protein_norm_fn : callable, optional
         Function for protein normalization. If None, tries SCUtils.Protein_normalization
     add_mast : bool, default True
@@ -73,18 +67,11 @@ def annotate_missionbio_sample(
     >>> import missionbio.mosaic as ms
     >>> sample = ms.load("sample.h5")
     >>> 
-    >>> # Basic annotation (automatic paths)
+    >>> # Basic annotation (uses default package models automatically)
     >>> annotations_df, adata = annotate_missionbio_sample(sample)
     >>> 
-    >>> # Basic annotation with mast cell detection (automatic paths)
+    >>> # Annotation with mast cell detection
     >>> annotations_df, adata = annotate_missionbio_sample(sample, add_mast=True)
-    >>> 
-    >>> # Annotation with custom paths
-    >>> annotations_df, adata = annotate_missionbio_sample(
-    ...     sample, 
-    ...     models_path="/path/to/models",
-    ...     data_path="/path/to/data"
-    ... )
     >>> 
     >>> # Annotation without mast cell detection
     >>> annotations_df, adata = annotate_missionbio_sample(
@@ -115,18 +102,15 @@ def annotate_missionbio_sample(
     if not hasattr(sample, 'protein') or sample.protein is None:
         raise ValueError("Sample must have a protein assay")
     
-    # Use default paths if not provided
-    if models_path is None or data_path is None:
-        try:
-            from .core import get_default_models_path, get_default_data_path
-            if models_path is None:
-                models_path = str(get_default_models_path())
-                print(f"[annotate_missionbio_sample] Using default models path: {models_path}")
-            if data_path is None:
-                data_path = str(get_default_data_path())
-                print(f"[annotate_missionbio_sample] Using default data path: {data_path}")
-        except Exception as e:
-            raise FileNotFoundError(f"Could not locate default paths and none provided: {e}")
+    # Use package default paths
+    try:
+        from .core import get_default_models_path, get_default_data_path
+        models_path = str(get_default_models_path())
+        data_path = str(get_default_data_path())
+        print(f"[annotate_missionbio_sample] Using default models path: {models_path}")
+        print(f"[annotate_missionbio_sample] Using default data path: {data_path}")
+    except Exception as e:
+        raise FileNotFoundError(f"Could not locate default package paths: {e}")
     
     print("[annotate_missionbio_sample] Extracting protein read counts...")
     
