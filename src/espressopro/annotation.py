@@ -463,7 +463,7 @@ def annotate_counts_matrix(
     )
 
     # Normalization - CLR transformation for protein data
-    adata.X = Scale_protein_data(adata.X)
+    Normalise_protein_data(adata, inplace=True)
 
     # Basic preprocessing
     sc.pp.pca(adata, svd_solver="arpack", zero_center=True)
