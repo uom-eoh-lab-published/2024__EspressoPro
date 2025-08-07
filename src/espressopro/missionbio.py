@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import scanpy as sc
 import anndata as ad
+
+from .annotation import Normalise_protein_data
 from anndata import AnnData
 from scipy.sparse import csr_matrix, csc_matrix, isspmatrix, issparse
 from sklearn import preprocessing
@@ -20,48 +22,6 @@ from warnings import warn
 
 from .annotation import annotate_anndata
 from .markers import add_mast_annotation, add_signature_annotation
-
-
-def clr(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnData]:
-    """
-    Apply the centered log ratio (CLR) transformation
-    to normalize counts in adata.X.
-
-    Args:
-        adata: AnnData object with protein expression counts.
-        inplace: Whether to update adata.X inplace.
-        axis: Axis across which CLR is performed.
-    """
-
-    if axis not in [0, 1]:
-        raise ValueError("Invalid value for `axis` provided. Admissible options are `0` and `1`.")
-
-    if not inplace:
-        adata = adata.copy()
-
-    if issparse(adata.X) and axis == 0 and not isinstance(adata.X, csc_matrix):
-        warn("adata.X is sparse but not in CSC format. Converting to CSC.")
-        x = csc_matrix(adata.X)
-    elif issparse(adata.X) and axis == 1 and not isinstance(adata.X, csr_matrix):
-        warn("adata.X is sparse but not in CSR format. Converting to CSR.")
-        x = csr_matrix(adata.X)
-    else:
-        x = adata.X
-
-    if issparse(x):
-        x.data /= np.repeat(
-            np.exp(np.log1p(x).sum(axis=axis).A / x.shape[axis]), x.getnnz(axis=axis)
-        )
-        np.log1p(x.data, out=x.data)
-    else:
-        np.log1p(
-            x / np.exp(np.log1p(x).sum(axis=axis, keepdims=True) / x.shape[axis]),
-            out=x,
-        )
-
-    adata.X = x
-
-    return None if inplace else adata
 
 
 def protein_normalization(x):
@@ -86,7 +46,7 @@ def protein_normalization(x):
         temp_adata = ad.AnnData(X=x)
         
         # Apply improved CLR transformation
-        clr(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
+        Normalise_protein_data(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
         
         # Extract the CLR-transformed data
         normalised_counts = temp_adata.X

@@ -1,6 +1,14 @@
 LICENSE
 README.md
 pyproject.toml
+src/espressopro/__init__.py
+src/espressopro/annotation.py
+src/espressopro/cli.py
+src/espressopro/constants.py
+src/espressopro/core.py
+src/espressopro/markers.py
+src/espressopro/missionbio.py
+src/espressopro/prediction.py
 src/espressopro.egg-info/PKG-INFO
 src/espressopro.egg-info/SOURCES.txt
 src/espressopro.egg-info/dependency_links.txt

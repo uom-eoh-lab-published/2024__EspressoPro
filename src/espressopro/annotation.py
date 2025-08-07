@@ -21,10 +21,11 @@ from .prediction import generate_predictions, add_best_localised_tracks
 from .constants import SIMPLIFIED_CLASSES, DETAILED_CLASSES, SIMPLIFIED_PARENT_MAP, DETAILED_PARENT_MAP
 
 
-def clr(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnData]:
+def Normalise_protein_data(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnData]:
     """
     Apply the centered log ratio (CLR) transformation
     to normalize counts in adata.X.
+    From Muon package (credit: https://github.com/muonlab/muon)
 
     Args:
         adata: AnnData object with protein expression counts.
@@ -63,7 +64,7 @@ def clr(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnD
     return None if inplace else adata
 
 
-def Protein_normalization(x):
+def Scale_protein_data(x):
     '''
     CLR normalize the input data using improved CLR transformation, followed by standard scaling.
 
@@ -79,7 +80,7 @@ def Protein_normalization(x):
         temp_adata = ad.AnnData(X=x)
         
         # Apply improved CLR transformation
-        clr(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
+        Normalise_protein_data(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
         
         # Extract the CLR-transformed data
         normalised_counts = temp_adata.X
@@ -397,7 +398,7 @@ def annotate_counts_matrix(
     )
 
     # Normalization - CLR transformation for protein data
-    adata.X = Protein_normalization(adata.X)
+    adata.X = Scale_protein_data(adata.X)
 
     # Basic preprocessing
     sc.pp.pca(adata, svd_solver="arpack", zero_center=True)
