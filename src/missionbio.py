@@ -102,16 +102,6 @@ def annotate_missionbio_sample(
     if not hasattr(sample, 'protein') or sample.protein is None:
         raise ValueError("Sample must have a protein assay")
     
-    # Use package default paths
-    try:
-        from .core import get_default_models_path, get_default_data_path
-        models_path = str(get_default_models_path())
-        data_path = str(get_default_data_path())
-        print(f"[annotate_missionbio_sample] Using default models path: {models_path}")
-        print(f"[annotate_missionbio_sample] Using default data path: {data_path}")
-    except Exception as e:
-        raise FileNotFoundError(f"Could not locate default package paths: {e}")
-    
     print("[annotate_missionbio_sample] Extracting protein read counts...")
     
     # Extract read counts following the user's pattern
@@ -185,11 +175,7 @@ def annotate_missionbio_sample(
     # ML annotation
     print("[annotate_missionbio_sample] Running ML cell type annotation...")
     
-    adata = annotate_anndata(
-        adata,
-        models_path=str(models_path),
-        data_path=str(data_path),
-    )
+    adata = annotate_anndata(adata)
     
     # Mast cell detection
     if add_mast:
