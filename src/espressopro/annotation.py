@@ -21,7 +21,7 @@ from .prediction import generate_predictions, add_best_localised_tracks
 from .constants import SIMPLIFIED_CLASSES, DETAILED_CLASSES, SIMPLIFIED_PARENT_MAP, DETAILED_PARENT_MAP
 
 
-def Normalise_protein_data(data, inplace: bool = True, jitter: float = 0.01, random_state: int = 42, scale: bool = True):
+def Normalise_protein_data(data, inplace: bool = True, jitter: float = 0.5, random_state: int = 42, scale: Optional[float] = None):
     """
     Apply MissionBio NSP (Noise Signal Processing) normalization to protein counts.
     Falls back to CLR transformation if NSP is not available.
@@ -33,7 +33,9 @@ def Normalise_protein_data(data, inplace: bool = True, jitter: float = 0.01, ran
         inplace: Whether to update data inplace (only applies to AnnData objects)
         jitter: Jitter parameter for NSP normalization
         random_state: Random state for reproducibility
-        scale: Whether to apply scaling in NSP
+        scale: The amount by which the read counts are scaled down.
+            This is applicable only for NSP. If 'None' then the
+            algorithm tries to estimate it from the read distribution.
         
     Returns:
         - If data is AnnData: None (if inplace=True) or AnnData copy (if inplace=False)
