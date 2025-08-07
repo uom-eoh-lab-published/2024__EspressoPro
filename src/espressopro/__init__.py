@@ -35,13 +35,15 @@ from .annotation import (
     Detailed_Annotation,
     annotate_anndata,
     annotate_counts_matrix,
-    Protein_normalization
+    Normalise_protein_data,
+    Scale_protein_data
 )
 from .missionbio import (
     annotate_missionbio_sample,
     suggest_cluster_celltype_identity,
     print_cluster_suggestions,
-    visualize_cluster_celltype_frequencies
+    visualize_cluster_celltype_frequencies,
+    protein_normalization
 )
 from .markers import add_mast_annotation, add_signature_annotation
 
@@ -61,6 +63,8 @@ __all__ = [
     "get_package_data_path",
     "get_default_models_path", 
     "get_default_data_path",
+    "download_models",
+    "ensure_models_available",
     
     # Prediction
     "stack_prediction",
@@ -74,13 +78,15 @@ __all__ = [
     "Detailed_Annotation", 
     "annotate_anndata",
     "annotate_counts_matrix",
-    "Protein_normalization",
+    "Normalise_protein_data",
+    "Scale_protein_data",
     
     # MissionBio
     "annotate_missionbio_sample",
     "suggest_cluster_celltype_identity",
     "print_cluster_suggestions", 
     "visualize_cluster_celltype_frequencies",
+    "protein_normalization",
     
     # Markers
     "add_mast_annotation",
