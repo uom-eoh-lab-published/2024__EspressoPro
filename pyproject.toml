@@ -39,7 +39,6 @@ dependencies = [
     "umap-learn>=0.5.0",
     "leidenalg>=0.8.0",
     "xgboost>=1.5.0",
-    "missionbio.mosaic-base>=3.0.0",
     "python-kaleido",
     "itables",
     "chrov>=0.0.3",
@@ -48,6 +47,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+missionbio = [
+    # Note: missionbio.mosaic is not available via pip
+    # Install using: conda install -c missionbio missionbio.mosaic
+    # "missionbio.mosaic>=3.0.0",
+]
 dev = [
     "pytest>=6.0",
     "pytest-cov",
