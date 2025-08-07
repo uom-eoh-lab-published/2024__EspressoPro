@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "espressopro"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
     {name = "Kristian Gurashi", email = "kristian.gurashi@gmail.com"},
 ]
@@ -39,11 +39,12 @@ dependencies = [
     "umap-learn>=0.5.0",
     "leidenalg>=0.8.0",
     "xgboost>=1.5.0",
-    "missionbio.mosaic-base>=3.12.0",
+    "missionbio.mosaic>=3.0.0",
     "python-kaleido",
     "itables",
     "chrov>=0.0.3",
     "venny4py",
+    "gdown",
 ]
 
 [project.optional-dependencies]
