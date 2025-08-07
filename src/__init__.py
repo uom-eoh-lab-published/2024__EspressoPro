@@ -12,9 +12,10 @@ This package provides end-to-end helpers for:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 # Core functionality
-from .core import load_models, get_package_data_path
+from .core import load_models, get_package_data_path, get_default_models_path, get_default_data_path
 from .prediction import (
     stack_prediction, 
     generate_predictions, 
@@ -48,7 +49,7 @@ from .constants import (
 __version__ = "1.0.0"
 
 # Main entry point function for backward compatibility
-def annotate_query_pipeline(query_adata, models_path: str, data_path: str):
+def annotate_query_pipeline(query_adata, models_path: Optional[str] = None, data_path: Optional[str] = None):
     """
     DEPRECATED: Use annotate_anndata() instead.
     Main annotation pipeline - backward compatibility wrapper.
@@ -63,7 +64,7 @@ def annotate_query_pipeline(query_adata, models_path: str, data_path: str):
 
 
 # For backward compatibility, also provide the old function name
-def annotate_query(query_adata, models_path: str, data_path: str):
+def annotate_query(query_adata, models_path: Optional[str] = None, data_path: Optional[str] = None):
     """
     DEPRECATED: Use annotate_anndata() instead.
     Backward compatibility wrapper.
@@ -80,6 +81,8 @@ __all__ = [
     # Core
     "load_models",
     "get_package_data_path",
+    "get_default_models_path", 
+    "get_default_data_path",
     
     # Prediction
     "stack_prediction",

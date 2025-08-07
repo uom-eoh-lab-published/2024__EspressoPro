@@ -42,21 +42,28 @@ pip install -e ".[dev]"
 ### Basic Usage
 
 ```python
-import EspressoPro as ep
+import espressopro as ep
 import scanpy as sc
 
 # Load your single-cell data
 adata = sc.read_h5ad("your_data.h5ad")
 
-# Annotate cell types
-annotated_adata = ep.annotate_query(
+# Annotate cell types (automatic path detection!)
+annotated_adata = ep.annotate_anndata(adata)
+
+# Access results
+print(annotated_adata.obs['CommonDetailed.Celltype'].value_counts())
+```
+
+### Custom Paths (if needed)
+
+```python
+# You can still specify custom paths if needed
+annotated_adata = ep.annotate_anndata(
     adata, 
     models_path="/path/to/models",
     data_path="/path/to/shared_features"
 )
-
-# Access results
-print(annotated_adata.obs['CommonDetailed.Celltype'].value_counts())
 ```
 
 ### MissionBio Integration
@@ -68,15 +75,22 @@ import espressopro as ep
 # Load MissionBio sample
 sample = ms.load("sample.h5")
 
-# Annotate with EspressoPro
+# Annotate with EspressoPro (automatic paths!)
+annotations_df, adata = ep.annotate_missionbio_sample(sample)
+
+# View results
+print(annotations_df.head())
+```
+
+### Custom Paths with MissionBio
+
+```python
+# You can still specify custom paths if needed
 annotations_df, adata = ep.annotate_missionbio_sample(
     sample,
     models_path="/path/to/models", 
     data_path="/path/to/data"
 )
-
-# View results
-print(annotations_df.head())
 ```
 
 ### From CSV Count Matrix
@@ -84,9 +98,12 @@ print(annotations_df.head())
 ```python
 import espressopro as ep
 
-# Annotate directly from CSV
-csv_out, umap_png = ep.annotate_counts_matrix(
-    csv_in="protein_counts.csv",
+# Annotate directly from CSV (automatic paths!)
+ep.annotate_counts_matrix("protein_counts.csv")
+
+# Or with custom paths
+ep.annotate_counts_matrix(
+    "protein_counts.csv",
     models_path="/path/to/models",
     data_path="/path/to/data"
 )
@@ -94,12 +111,14 @@ csv_out, umap_png = ep.annotate_counts_matrix(
 
 ## Core Functions
 
-- **`annotate_query()`**: Main annotation pipeline
-- **`annotate_missionbio_sample()`**: MissionBio-specific workflow  
-- **`annotate_counts_matrix()`**: Direct CSV processing
+- **`annotate_anndata()`**: Main annotation pipeline (automatic path detection)
+- **`annotate_missionbio_sample()`**: MissionBio-specific workflow (automatic path detection)
+- **`annotate_counts_matrix()`**: Direct CSV processing (automatic path detection)
 - **`load_models()`**: Model loading utilities
 - **`add_mast_annotation()`**: Mast cell detection
 - **`suggest_cluster_celltype_identity()`**: Cluster analysis
+- **`get_default_models_path()`**: Get package default models path
+- **`get_default_data_path()`**: Get package default data path
 
 ## Package Structure
 
@@ -138,7 +157,10 @@ espressopro/
 ## Command Line Interface
 
 ```bash
-# Annotate from command line
+# Annotate from command line (automatic paths)
+espressopro --query data.h5ad --out annotated.h5ad
+
+# Or with custom paths  
 espressopro --query data.h5ad --models ./models --data ./data --out annotated.h5ad
 ```
 

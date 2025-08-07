@@ -100,6 +100,57 @@ def get_package_data_path():
     raise FileNotFoundError("Could not locate package data directory")
 
 
+def get_default_models_path():
+    """
+    Get the default path to pre-trained models.
+    
+    Returns
+    -------
+    Path
+        Path to pre-trained models directory
+        
+    Raises
+    ------
+    FileNotFoundError
+        If models directory is not found
+    """
+    try:
+        data_root = get_package_data_path()
+        models_path = data_root / "Pre_trained_models" / "TotalSeqD_Heme_Oncology_CAT399906"
+        if models_path.exists():
+            return models_path
+        else:
+            # Try alternative structure for development
+            package_root = Path(__file__).parent.parent
+            alt_models_path = package_root / "Data" / "Pre_trained_models" / "TotalSeqD_Heme_Oncology_CAT399906"
+            if alt_models_path.exists():
+                return alt_models_path
+            raise FileNotFoundError(f"Models directory not found at {models_path} or {alt_models_path}")
+    except Exception as e:
+        raise FileNotFoundError(f"Could not locate default models path: {e}")
+
+
+def get_default_data_path():
+    """
+    Get the default path to shared features data.
+    
+    Returns
+    -------
+    Path
+        Path to shared features data directory
+        
+    Raises
+    ------
+    FileNotFoundError
+        If data directory is not found
+    """
+    try:
+        models_root = get_default_models_path()
+        return models_root  # The shared features are in the same directory as models
+    except Exception as e:
+        raise FileNotFoundError(f"Could not locate default data path: {e}")
+
+
 def _get_data_path_importlib_resources():
     """Try importlib.resources approach."""
     try:
@@ -125,6 +176,8 @@ def _get_data_path_relative():
         current_file.parent / 'data',
         current_file.parent.parent / 'data', 
         current_file.parent.parent.parent / 'data',
+        current_file.parent.parent / 'Data',  # For development structure
+        current_file.parent.parent.parent / 'Data',  # For development structure
     ]
     
     for path in possible_paths:

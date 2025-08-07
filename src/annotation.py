@@ -201,7 +201,11 @@ def Detailed_Annotation(adata: AnnData, conf_threshold: float = 0.6) -> AnnData:
     return adata
 
 
-def annotate_anndata(query_adata: AnnData, models_path: str, data_path: str) -> AnnData:
+def annotate_anndata(
+    query_adata: AnnData, 
+    models_path: Optional[Union[str, Path]] = None, 
+    data_path: Optional[Union[str, Path]] = None
+) -> AnnData:
     """
     Main annotation pipeline driver.
     
@@ -209,16 +213,27 @@ def annotate_anndata(query_adata: AnnData, models_path: str, data_path: str) -> 
     ----------
     query_adata : AnnData
         Query dataset to annotate
-    models_path : str
-        Path to pre-trained models
-    data_path : str
-        Path to shared features data
+    models_path : Optional[Union[str, Path]], default None
+        Path to pre-trained models. If None, uses package default.
+    data_path : Optional[Union[str, Path]], default None
+        Path to shared features data. If None, uses package default.
         
     Returns
     -------
     AnnData
         Fully annotated AnnData object
     """
+    from .core import get_default_models_path, get_default_data_path
+    
+    # Use default paths if not provided
+    if models_path is None:
+        models_path = str(get_default_models_path())
+        print(f"[annotate_anndata] Using default models path: {models_path}")
+    
+    if data_path is None:
+        data_path = str(get_default_data_path())
+        print(f"[annotate_anndata] Using default data path: {data_path}")
+
     models = load_models(models_path)
 
     X = query_adata.X.A if hasattr(query_adata.X, "A") else query_adata.X
@@ -242,8 +257,8 @@ def annotate_anndata(query_adata: AnnData, models_path: str, data_path: str) -> 
 
 def annotate_counts_matrix(
     csv: Union[str, Path],
-    models_path: Union[str, Path],
-    data_path: Union[str, Path],
+    models_path: Optional[Union[str, Path]] = None,
+    data_path: Optional[Union[str, Path]] = None,
     *,
     index_col: Union[int, str, None] = 0,
 ) -> None:
@@ -254,10 +269,10 @@ def annotate_counts_matrix(
     ----------
     csv : Union[str, Path]
         Input CSV file path with count data (will be modified in place)
-    models_path : Union[str, Path]
-        Path to pre-trained models
-    data_path : Union[str, Path]
-        Path to shared features data
+    models_path : Optional[Union[str, Path]], default None
+        Path to pre-trained models. If None, uses package default.
+    data_path : Optional[Union[str, Path]], default None
+        Path to shared features data. If None, uses package default.
     index_col : Union[int, str, None], default 0
         Column to use as index (barcodes/cell IDs)
         
@@ -268,13 +283,27 @@ def annotate_counts_matrix(
         
     Examples
     --------
-    >>> # Adds annotation columns to "protein_counts.csv"
+    >>> # Adds annotation columns to "protein_counts.csv" (automatic paths)
+    >>> annotate_counts_matrix("protein_counts.csv")
+    >>> 
+    >>> # Adds annotation columns with custom paths
     >>> annotate_counts_matrix(
     ...     "protein_counts.csv", 
     ...     models_path="/path/to/models",
     ...     data_path="/path/to/data"
     ... )
     """
+    from .core import get_default_models_path, get_default_data_path
+    
+    # Use default paths if not provided
+    if models_path is None:
+        models_path = str(get_default_models_path())
+        print(f"[annotate_counts_matrix] Using default models path: {models_path}")
+    
+    if data_path is None:
+        data_path = str(get_default_data_path())
+        print(f"[annotate_counts_matrix] Using default data path: {data_path}")
+
     # Load and clean data
     df_raw = pd.read_csv(csv, index_col=index_col)
     num_cols = df_raw.select_dtypes(include=["number"]).columns
