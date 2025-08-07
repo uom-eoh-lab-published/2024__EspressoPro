@@ -10,9 +10,9 @@
 
 🧬 **Multi-level Annotation**: Hierarchical cell type annotation (Broad → Simplified → Detailed)  
 🤖 **Machine Learning**: Prediction from pre-trained stacked models derived from multiple atlas references (Hao, Zhang, Triana, Luecken)  
-📊 **Coherent-predictions**: Best atlas selection based on latent dimension coherence 
+📊 **Coherent-predictions**: Best atlas selection based on latent dimension coherence  
 🎯 **Rare Cell-types Detection**: Mast and other cells detection using marker signatures  
-📈 **Analysis Tools**: Cluster-celltype relationship analysis and visualization 
+📈 **Analysis Tools**: Cluster-celltype relationship analysis and visualization  
 ⚡ **Easy to Use**: Simple one-line annotations with sensible defaults  
 
 ## Installation
