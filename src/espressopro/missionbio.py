@@ -164,11 +164,6 @@ def annotate_missionbio_sample(
         # First apply CLR normalization to protein data
         Normalise_protein_data(adata, inplace=True)
         print("[annotate_missionbio_sample] CLR normalization completed successfully")
-        
-        # Then apply scaling for downstream analysis
-        from .annotation import Scale_protein_data
-        Scale_protein_data(adata, inplace=True)
-        print("[annotate_missionbio_sample] Scaling completed successfully")
     except Exception as e:
         print(f"[annotate_missionbio_sample] WARNING: Normalization failed ({e}), using raw data")
         # Keep original data if normalization fails
