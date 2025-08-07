@@ -39,7 +39,7 @@ dependencies = [
     "umap-learn>=0.5.0",
     "leidenalg>=0.8.0",
     "xgboost>=1.5.0",
-    "python-kaleido",
+    "kaleido",
     "itables",
     "chrov>=0.0.3",
     "venny4py",
