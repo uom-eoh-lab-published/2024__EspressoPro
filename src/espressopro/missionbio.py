@@ -14,9 +14,45 @@ import seaborn as sns
 import scanpy as sc
 import anndata as ad
 from anndata import AnnData
+from scipy.sparse import csr_matrix, isspmatrix
 
 from .annotation import annotate_anndata
 from .markers import add_mast_annotation, add_signature_annotation
+
+
+def protein_normalization(x):
+    """
+    CLR normalize the input data using log1p and mean centering.
+    
+    This is a fallback implementation when SCUtils is not available.
+
+    Parameters
+    ----------
+    x : array-like
+        The input data to be normalized. It can be a numpy array, 
+        a pandas DataFrame, or a sparse matrix.
+
+    Returns
+    -------
+    numpy.ndarray
+        The normalized data.
+    """
+    if isinstance(x, (pd.DataFrame, np.ndarray)) or isspmatrix(x):
+        # Convert to CSR matrix
+        x = csr_matrix(x)
+    else:
+        raise ValueError("Input x must be a numpy array, a pandas DataFrame, or a sparse matrix")
+    
+    # Apply log1p transformation to make the distribution more Gaussian-like
+    normalised_counts = np.log1p(x.astype(float))
+    
+    # Subtract the mean of each row
+    normalised_counts = normalised_counts - normalised_counts.mean(axis=1)[:, None]
+    
+    # Convert the result to a numpy array
+    normalised_counts = np.asarray(normalised_counts)
+    
+    return normalised_counts
 
 
 def annotate_missionbio_sample(
@@ -40,7 +76,8 @@ def annotate_missionbio_sample(
     sample : missionbio.mosaic.Sample
         MissionBio sample object with protein assay
     protein_norm_fn : callable, optional
-        Function for protein normalization. If None, tries SCUtils.Protein_normalization
+        Function for protein normalization. If None, tries SCUtils.Protein_normalization,
+        falls back to built-in CLR (Centered Log Ratio) normalization if SCUtils is not available
     add_mast : bool, default True
         Whether to add mast cell detection
     mast_thresh : float, optional
@@ -165,10 +202,15 @@ def annotate_missionbio_sample(
             protein_norm_fn = SCUtils.Protein_normalization
             print("[annotate_missionbio_sample] Using SCUtils.Protein_normalization")
         except ImportError:
-            print("[annotate_missionbio_sample] WARNING: SCUtils not found, skipping normalization")
-            protein_norm_fn = lambda x: x
+            print("[annotate_missionbio_sample] SCUtils not found, using built-in CLR normalization")
+            protein_norm_fn = protein_normalization
     
-    adata.X = protein_norm_fn(adata.X)
+    try:
+        adata.X = protein_norm_fn(adata.X)
+        print("[annotate_missionbio_sample] Normalization completed successfully")
+    except Exception as e:
+        print(f"[annotate_missionbio_sample] WARNING: Normalization failed ({e}), using raw data")
+        # Keep original data if normalization fails
     
     # Dimensionality reduction
     print("[annotate_missionbio_sample] Computing PCA and neighbors...")
