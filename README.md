@@ -9,18 +9,23 @@
 ## ✨ Key Features
 
 🧬 **Multi-level Annotation**: Hierarchical cell type annotation (Broad → Simplified → Detailed)  
-🤖 **Machine Learning**: Prediction from pre-trained stacked models derived from multiple atlas references (Hao, Zhang, Triana, Luecken)  
+🤖 **Machine Learning**: Pre-trained stacked ensemble models from multiple atlas references (Hao, Zhang, Triana, Luecken)  
 📊 **Coherent-predictions**: Best atlas selection based on latent dimension coherence  
 🎯 **Rare Cell-types Detection**: Mast and other cells detection using marker signatures  
 📈 **Analysis Tools**: Cluster-celltype relationship analysis and visualization  
 ⚡ **Easy to Use**: Simple one-line annotations with sensible defaults  
+🔄 **Auto-Download**: Automatic model downloading on first use - no manual setup required  
 
 ## Installation
 
 ### From GitHub (recommended for latest features)
 
 ```bash
+# Install with automatic model downloading capability
 pip install git+https://github.com/EspressoKris/EspressoPro.git
+
+# Or install with all dependencies explicitly
+pip install git+https://github.com/EspressoKris/EspressoPro.git gdown
 ```
 
 ### From PyPI (when released)
@@ -37,6 +42,8 @@ cd EspressoPro
 pip install -e ".[dev]"
 ```
 
+**Note**: The `gdown` package is required for automatic model downloading. If not installed, you'll see a helpful error message with installation instructions.
+
 ## 🚀 Quick Start
 
 ### ⚡ Super Simple Usage (Recommended)
@@ -48,7 +55,8 @@ import scanpy as sc
 # Load your single-cell data
 adata = sc.read_h5ad("your_data.h5ad")
 
-# One line annotation with automatic path detection
+# One line annotation with automatic model download & path detection
+# Note: Models will be automatically downloaded on first use (~400MB)
 annotated_adata = ep.annotate_anndata(adata)
 
 # Access results at multiple levels
@@ -68,7 +76,8 @@ import espressopro as ep
 # Load MissionBio sample
 sample = ms.load("sample.h5")
 
-# One-line annotation with automatic paths!
+# One-line annotation with automatic model download & path detection!
+# Note: Models will be automatically downloaded on first use (~400MB)
 annotations_df, adata = ep.annotate_missionbio_sample(sample)
 
 # View comprehensive results
@@ -122,9 +131,9 @@ adata_custom = ep.add_signature_annotation(
 ## 🔧 Core Functions
 
 ### 🎯 Main Annotation Functions
-- **`annotate_anndata(adata)`**: Main annotation pipeline with automatic path detection
-- **`annotate_missionbio_sample(sample)`**: MissionBio-specific workflow with automatic paths  
-- **`annotate_counts_matrix("file.csv")`**: Direct CSV processing with automatic paths
+- **`annotate_anndata(adata)`**: Main annotation pipeline with automatic model download & path detection
+- **`annotate_missionbio_sample(sample)`**: MissionBio-specific workflow with automatic model download & paths  
+- **`annotate_counts_matrix("file.csv")`**: Direct CSV processing with automatic model download & paths
 
 ### 🔍 Specialized Detection
 - **`add_mast_annotation(adata)`**: Mast cell detection using marker signatures
@@ -133,8 +142,10 @@ adata_custom = ep.add_signature_annotation(
 
 ### ⚙️ Utility Functions
 - **`load_models(models_path)`**: Model loading utilities
-- **`get_default_models_path()`**: Get package default models path  
-- **`get_default_data_path()`**: Get package default data path
+- **`get_default_models_path()`**: Get package default models path (downloads if needed)  
+- **`get_default_data_path()`**: Get package default data path (downloads if needed)
+- **`download_models()`**: Manually download pre-trained models from Google Drive
+- **`ensure_models_available()`**: Ensure models are available, downloading if necessary
 
 ### 📊 Analysis Functions
 - **`print_cluster_suggestions(suggestions)`**: Display cluster analysis results
@@ -149,6 +160,7 @@ adata_custom = ep.add_signature_annotation(
 - **scikit-learn**: ≥1.0.0 (tested with 1.5.2)
 - **scipy**: ≥1.7.0
 - **joblib**: ≥1.0.0 (tested with 1.5.1)
+- **gdown**: ≥4.0.0 (for automatic model downloading)
 
 ### Single-Cell Analysis
 - **scanpy**: ≥1.8.0 (tested with 1.11.3)
@@ -161,7 +173,7 @@ adata_custom = ep.add_signature_annotation(
 - **seaborn**: ≥0.11.0 (tested with 0.13.2)
 
 ### Machine Learning
-- **xgboost**: ≥1.5.0
+- **scikit-learn**: ≥1.0.0 (pre-trained stacked models)
 
 ### Platform Integration
 - **missionbio.mosaic-base**: ≥3.12.0 (tested with 3.12.2)
@@ -171,11 +183,8 @@ adata_custom = ep.add_signature_annotation(
 EspressoPro includes a convenient CLI for batch processing:
 
 ```bash
-# Simple annotation with automatic paths
+# Simple annotation with automatic model download & path detection
 espressopro --query data.h5ad --out annotated.h5ad
-
-# With custom paths (if needed)
-espressopro --query data.h5ad --models ./models --data ./data --out annotated.h5ad
 
 # Get help
 espressopro --help
@@ -204,9 +213,9 @@ EspressoPro implements hierarchical cell type annotation using multiple referenc
 3. **Detailed**: 35+ specific cell subtypes
 
 ### Machine Learning Pipeline
-1. **Model Loading**: Pre-trained classifiers per atlas
+1. **Model Loading**: Pre-trained stacked ensemble models per atlas
 2. **Feature Matching**: Automatic protein marker alignment
-3. **Ensemble Voting**: Best-localized track selection
+3. **Ensemble Prediction**: Unified stacked model inference
 4. **Hierarchical Constraints**: Parent-child annotation consistency
 5. **Confidence Scoring**: Quality assessment and low-confidence flagging
 

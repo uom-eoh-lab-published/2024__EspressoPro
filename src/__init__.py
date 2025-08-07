@@ -15,7 +15,14 @@ from __future__ import annotations
 from typing import Optional
 
 # Core functionality
-from .core import load_models, get_package_data_path, get_default_models_path, get_default_data_path
+from .core import (
+    load_models, 
+    get_package_data_path, 
+    get_default_models_path, 
+    get_default_data_path,
+    download_models,
+    ensure_models_available
+)
 from .prediction import (
     stack_prediction, 
     generate_predictions, 
