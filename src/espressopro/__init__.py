@@ -42,8 +42,7 @@ from .missionbio import (
     annotate_missionbio_sample,
     suggest_cluster_celltype_identity,
     print_cluster_suggestions,
-    visualize_cluster_celltype_frequencies,
-    protein_normalization
+    visualize_cluster_celltype_frequencies
 )
 from .markers import add_mast_annotation, add_signature_annotation
 
@@ -86,7 +85,6 @@ __all__ = [
     "suggest_cluster_celltype_identity",
     "print_cluster_suggestions", 
     "visualize_cluster_celltype_frequencies",
-    "protein_normalization",
     
     # Markers
     "add_mast_annotation",

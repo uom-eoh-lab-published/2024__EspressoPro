@@ -14,7 +14,7 @@ import seaborn as sns
 import scanpy as sc
 import anndata as ad
 
-from .annotation import Normalise_protein_data
+from .annotation import Normalise_protein_data, Scale_protein_data
 from anndata import AnnData
 from scipy.sparse import csr_matrix, csc_matrix, isspmatrix, issparse
 from sklearn import preprocessing
@@ -23,51 +23,9 @@ from warnings import warn
 from .annotation import annotate_anndata
 from .markers import add_mast_annotation, add_signature_annotation
 
-
-def protein_normalization(x):
-    """
-    CLR normalize the input data using improved CLR transformation, followed by standard scaling.
-    
-    This is a fallback implementation when SCUtils is not available.
-
-    Parameters
-    ----------
-    x : array-like
-        The input data to be normalized. It can be a numpy array, 
-        a pandas DataFrame, or a sparse matrix.
-
-    Returns
-    -------
-    numpy.ndarray
-        The normalized and scaled data.
-    """
-    if isinstance(x, (pd.DataFrame, np.ndarray)) or isspmatrix(x):
-        # Create temporary AnnData for CLR transformation
-        temp_adata = ad.AnnData(X=x)
-        
-        # Apply improved CLR transformation
-        Normalise_protein_data(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
-        
-        # Extract the CLR-transformed data
-        normalised_counts = temp_adata.X
-        
-        # Convert to dense array if sparse
-        if issparse(normalised_counts):
-            normalised_counts = normalised_counts.toarray()
-        
-        # Apply StandardScaler for feature scaling
-        scaler = preprocessing.StandardScaler()
-        data_scaled_standard = scaler.fit_transform(normalised_counts)
-        
-        return data_scaled_standard
-    else:
-        raise ValueError("Input x must be a numpy array, a pandas DataFrame, or a sparse matrix")
-
-
 def annotate_missionbio_sample(
     sample,
     *,
-    protein_norm_fn=None,
     add_mast: bool = True,
     mast_thresh: Optional[float] = None,
     custom_signatures: Optional[List[Dict]] = None,
@@ -84,9 +42,6 @@ def annotate_missionbio_sample(
     ----------
     sample : missionbio.mosaic.Sample
         MissionBio sample object with protein assay
-    protein_norm_fn : callable, optional
-        Function for protein normalization. If None, tries SCUtils.Protein_normalization,
-        falls back to built-in improved CLR + StandardScaler normalization if SCUtils is not available
     add_mast : bool, default True
         Whether to add mast cell detection
     mast_thresh : float, optional
@@ -205,17 +160,8 @@ def annotate_missionbio_sample(
     # Normalization
     print("[annotate_missionbio_sample] Applying protein normalization...")
     
-    if protein_norm_fn is None:
-        try:
-            import SCUtils
-            protein_norm_fn = SCUtils.Protein_normalization
-            print("[annotate_missionbio_sample] Using SCUtils.Protein_normalization")
-        except ImportError:
-            print("[annotate_missionbio_sample] SCUtils not found, using built-in improved CLR + StandardScaler normalization")
-            protein_norm_fn = protein_normalization
-    
     try:
-        adata.X = protein_norm_fn(adata.X)
+        adata.X = Scale_protein_data(adata.X)
         print("[annotate_missionbio_sample] Normalization completed successfully")
     except Exception as e:
         print(f"[annotate_missionbio_sample] WARNING: Normalization failed ({e}), using raw data")

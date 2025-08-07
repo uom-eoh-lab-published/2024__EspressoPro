@@ -21,33 +21,49 @@ from .prediction import generate_predictions, add_best_localised_tracks
 from .constants import SIMPLIFIED_CLASSES, DETAILED_CLASSES, SIMPLIFIED_PARENT_MAP, DETAILED_PARENT_MAP
 
 
-def Normalise_protein_data(adata: AnnData, inplace: bool = True, axis: int = 0) -> Union[None, AnnData]:
+def Normalise_protein_data(data, inplace: bool = True, axis: int = 0):
     """
-    Apply the centered log ratio (CLR) transformation
-    to normalize counts in adata.X.
+    Apply the centered log ratio (CLR) transformation to normalize counts.
     From Muon package (credit: https://github.com/muonlab/muon)
 
     Args:
-        adata: AnnData object with protein expression counts.
-        inplace: Whether to update adata.X inplace.
-        axis: Axis across which CLR is performed.
+        data: Can be either:
+            - AnnData object with protein expression counts in .X
+            - Raw matrix/DataFrame (numpy array, pandas DataFrame, or sparse matrix)
+        inplace: Whether to update data inplace (only applies to AnnData objects)
+        axis: Axis across which CLR is performed (0=samples, 1=features)
+        
+    Returns:
+        - If data is AnnData: None (if inplace=True) or AnnData copy (if inplace=False)
+        - If data is matrix/DataFrame: CLR-transformed array
     """
+    from anndata import AnnData
 
     if axis not in [0, 1]:
         raise ValueError("Invalid value for `axis` provided. Admissible options are `0` and `1`.")
 
-    if not inplace:
-        adata = adata.copy()
-
-    if issparse(adata.X) and axis == 0 and not isinstance(adata.X, csc_matrix):
-        warn("adata.X is sparse but not in CSC format. Converting to CSC.")
-        x = csc_matrix(adata.X)
-    elif issparse(adata.X) and axis == 1 and not isinstance(adata.X, csr_matrix):
-        warn("adata.X is sparse but not in CSR format. Converting to CSR.")
-        x = csr_matrix(adata.X)
-    else:
+    # Handle AnnData input (original behavior)
+    if isinstance(data, AnnData):
+        adata = data
+        if not inplace:
+            adata = adata.copy()
         x = adata.X
+    # Handle raw matrix/DataFrame input (new functionality)
+    else:
+        if isinstance(data, (pd.DataFrame, np.ndarray)) or isspmatrix(data):
+            x = data
+        else:
+            raise ValueError("Input data must be an AnnData object, numpy array, pandas DataFrame, or sparse matrix")
 
+    # Ensure proper sparse matrix format for the given axis
+    if issparse(x) and axis == 0 and not isinstance(x, csc_matrix):
+        warn("Input is sparse but not in CSC format. Converting to CSC.")
+        x = csc_matrix(x)
+    elif issparse(x) and axis == 1 and not isinstance(x, csr_matrix):
+        warn("Input is sparse but not in CSR format. Converting to CSR.")
+        x = csr_matrix(x)
+
+    # Apply CLR transformation
     if issparse(x):
         x.data /= np.repeat(
             np.exp(np.log1p(x).sum(axis=axis).A / x.shape[axis]), x.getnnz(axis=axis)
@@ -59,31 +75,32 @@ def Normalise_protein_data(adata: AnnData, inplace: bool = True, axis: int = 0) 
             out=x,
         )
 
-    adata.X = x
-
-    return None if inplace else adata
+    # Return based on input type
+    if isinstance(data, AnnData):
+        data.X = x
+        return None if inplace else data
+    else:
+        return x
 
 
 def Scale_protein_data(x):
-    '''
+    """
     CLR normalize the input data using improved CLR transformation, followed by standard scaling.
 
-    Parameters:
-    x (array-like): The input data to be normalized. It can be a numpy array, a pandas DataFrame, or a sparse matrix.
+    Parameters
+    ----------
+    x : array-like
+        The input data to be normalized. It can be a numpy array, 
+        a pandas DataFrame, or a sparse matrix.
 
-    Returns:
-    numpy.ndarray: The normalized and scaled data.
-
-    '''
+    Returns
+    -------
+    numpy.ndarray
+        The normalized and scaled data.
+    """
     if isinstance(x, (pd.DataFrame, np.ndarray)) or isspmatrix(x):
-        # Create temporary AnnData for CLR transformation
-        temp_adata = ad.AnnData(X=x)
-        
-        # Apply improved CLR transformation
-        Normalise_protein_data(temp_adata, inplace=True, axis=1)  # CLR across features (axis=1)
-        
-        # Extract the CLR-transformed data
-        normalised_counts = temp_adata.X
+        # Apply CLR transformation directly to the input data
+        normalised_counts = Normalise_protein_data(x, axis=1)  # CLR across features (axis=1)
         
         # Convert to dense array if sparse
         if issparse(normalised_counts):
