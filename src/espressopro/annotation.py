@@ -70,10 +70,21 @@ def Normalise_protein_data(data, inplace: bool = True, axis: int = 0):
         )
         np.log1p(x.data, out=x.data)
     else:
-        np.log1p(
-            x / np.exp(np.log1p(x).sum(axis=axis, keepdims=True) / x.shape[axis]),
-            out=x,
-        )
+        # Handle pandas DataFrame separately due to keepdims parameter issue
+        if isinstance(x, pd.DataFrame):
+            # Convert to numpy for CLR calculation, then back to DataFrame
+            x_values = x.values
+            np.log1p(
+                x_values / np.exp(np.log1p(x_values).sum(axis=axis, keepdims=True) / x_values.shape[axis]),
+                out=x_values,
+            )
+            x = pd.DataFrame(x_values, index=x.index, columns=x.columns)
+        else:
+            # Standard numpy array handling
+            np.log1p(
+                x / np.exp(np.log1p(x).sum(axis=axis, keepdims=True) / x.shape[axis]),
+                out=x,
+            )
 
     # Return based on input type
     if isinstance(data, AnnData):
