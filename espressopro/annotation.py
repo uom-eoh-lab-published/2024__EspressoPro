@@ -729,10 +729,10 @@ def mark_small_clusters(
     obj: Union["AnnData", Any],
     label_col: str,
     *,
-    min_count: int = 3,
+    min_cells: int = 3,
     small_label: str = "Small",
 ):
-    """Relabel clusters with < min_count cells as 'Small'."""
+    """Relabel clusters with < min_cells counts as 'Small'."""
     is_anndata = isinstance(obj, AnnData)
     is_sample = _is_mosaic_sample(obj)
 
@@ -753,7 +753,7 @@ def mark_small_clusters(
         was_categorical = False
 
     counts = labels_s.value_counts()
-    small = counts[counts < min_count].index
+    small = counts[counts < min_cells].index
     updated = labels_s.replace(dict.fromkeys(small, small_label))
 
     if is_anndata:
@@ -768,125 +768,345 @@ def mark_small_clusters(
     obj.protein.row_attrs[label_col] = np.asarray(updated.values, dtype=object)
     return obj
 
-def refine_labels_by_centroid_knn(
-    obj: Union["AnnData", Any],
-    label_col: str = "Consensus_annotation_detailed",
-    embedding_key: str = "X_umap",
+from typing import Union, Sequence, Tuple, List
+import numpy as np
+import pandas as pd
+try:
+    from anndata import AnnData
+except Exception:
+    AnnData = object  # soft import
+
+
+def _is_mosaic_sample(x) -> bool:
+    return hasattr(x, "protein") and hasattr(x.protein, "get_labels") and hasattr(x.protein, "row_attrs")
+
+
+from typing import Union, Optional
+import numpy as np
+import pandas as pd
+
+try:
+    from anndata import AnnData
+except Exception:
+    AnnData = object  # soft import
+
+
+def _is_mosaic_sample(x) -> bool:
+    return hasattr(x, "protein") and hasattr(x.protein, "get_labels") and hasattr(x.protein, "row_attrs")
+
+
+def mark_mixed_clusters(
+    obj: Union["AnnData", any],
+    label_col: str,
     *,
-    min_count: int = 10,
-    outlier_z: float = 2.0,
-    core_z: float = 1.0,
-    min_core_fraction: float = 0.6,
-    k_neighbors: int = 30,
-    min_neighbor_frac: float = 0.4,
-    restrict_to_frequent_targets: bool = True,
-    out_col: Optional[str] = None
-) -> Tuple[int, Union[pd.Series, np.ndarray], Union["AnnData", Any]]:
-    """Flag centroid outliers and reassign by neighbor majority on the embedding."""
+    cluster_col: Optional[str] = None,
+    min_frequency_threshold: float = 0.3,
+    mixed_label: str = "Mixed",
+) -> Union["AnnData", any]:
+    """
+    Find clusters with no dominant label in `label_col` and relabel *all* cells
+    in those clusters as `mixed_label`. Modifies the object in place and returns it.
+
+    Mixed definition:
+      For each cluster, compute the frequency of the most common label in `label_col`.
+      If that top frequency < `min_frequency_threshold`, the cluster is 'mixed'.
+
+    Parameters
+    ----------
+    obj : AnnData or missionbio.mosaic.sample.Sample
+    label_col : str
+        Per-cell label column to modify (e.g. 'CommonDetailed.Celltype.Refined').
+    cluster_col : str, optional (AnnData only)
+        Cluster column in `adata.obs` (e.g. 'leiden', 'louvain'). If None, tries common names.
+        Ignored for MissionBio Samples (uses sample.protein.get_labels()).
+    min_frequency_threshold : float
+        Threshold for dominance (default 0.3).
+    mixed_label : str
+        Label to assign to cells in mixed clusters (default 'Mixed').
+
+    Returns
+    -------
+    Same object type (AnnData or MissionBio Sample), modified in place.
+    """
     is_anndata = isinstance(obj, AnnData)
-    is_sample = _is_mosaic_sample(obj)
+    is_sample  = _is_mosaic_sample(obj)
 
     if not (is_anndata or is_sample):
         raise TypeError("Expected AnnData or missionbio.mosaic.sample.Sample")
 
-    out_col = out_col or f"{label_col}_refined"
-
+    # --- cluster ids per cell ---
     if is_anndata:
-        adata = obj
-        if embedding_key not in adata.obsm:
+        if cluster_col is None:
+            for cand in ("leiden", "louvain", "clusters", "cluster"):
+                if cand in getattr(obj, "obs", pd.DataFrame()).columns:
+                    cluster_col = cand
+                    break
+        if cluster_col is None or cluster_col not in obj.obs.columns:
+            raise KeyError("Cluster column not found. Provide cluster_col (e.g. 'leiden').")
+        clusters = obj.obs[cluster_col].astype(str).to_numpy()
+    else:
+        clusters = np.asarray(obj.protein.get_labels()).astype(str)
+
+    # --- per-cell labels to overwrite ---
+    if is_anndata:
+        if label_col not in obj.obs.columns:
+            raise KeyError(f"'{label_col}' not in adata.obs")
+        labels = obj.obs[label_col]
+        was_cat = pd.api.types.is_categorical_dtype(labels)
+        labels_s = labels.astype(str)
+    else:
+        if label_col not in obj.protein.row_attrs:
+            raise KeyError(f"'{label_col}' not in Sample.protein.row_attrs")
+        labels_arr = np.asarray(obj.protein.row_attrs[label_col])
+        labels_s = pd.Series(labels_arr.astype(str))
+        was_cat = False
+
+    # --- composition per cluster ---
+    df = pd.DataFrame({"cluster": clusters, "label": labels_s.values})
+    counts = df.groupby(["cluster", "label"]).size().rename("count").reset_index()
+    totals = df.groupby("cluster").size().rename("total").reset_index()
+    freq = counts.merge(totals, on="cluster", how="left")
+    freq["frequency"] = freq["count"] / freq["total"].replace(0, np.nan)
+
+    top = freq.loc[freq.groupby("cluster")["frequency"].idxmax(), ["cluster", "label", "frequency"]]
+    mixed_clusters = top.loc[top["frequency"] < float(min_frequency_threshold), "cluster"].astype(str).tolist()
+
+    # nothing to change → return object unchanged
+    if not mixed_clusters:
+        return obj
+
+    # overwrite labels for cells in mixed clusters
+    mixed_mask = pd.Series(clusters).isin(mixed_clusters).to_numpy()
+    updated = labels_s.where(~mixed_mask, other=mixed_label)
+
+    # write back, preserving categorical dtype for AnnData
+    if is_anndata:
+        if was_cat:
+            cats = pd.Index(labels.cat.categories).astype(str)
+            if mixed_label not in cats:
+                cats = cats.append(pd.Index([mixed_label]))
+            obj.obs[label_col] = pd.Categorical(updated, categories=cats)
+        else:
+            obj.obs[label_col] = updated
+    else:
+        obj.protein.row_attrs[label_col] = np.asarray(updated.values, dtype=object)
+
+    return obj
+
+from typing import Union, Optional, Tuple, Dict
+import numpy as np
+import pandas as pd
+
+try:
+    from anndata import AnnData
+except Exception:
+    AnnData = object  # soft import
+
+
+def _is_mosaic_sample(x) -> bool:
+    return hasattr(x, "protein") and hasattr(x.protein, "row_attrs") and hasattr(x.protein, "get_labels")
+
+from typing import Union, Optional, Tuple, Dict
+import numpy as np
+import pandas as pd
+
+try:
+    from anndata import AnnData
+except Exception:
+    AnnData = object  # soft import
+
+
+def _is_mosaic_sample(x) -> bool:
+    return hasattr(x, "protein") and hasattr(x.protein, "row_attrs") and hasattr(x.protein, "get_labels")
+
+
+def refine_labels_by_knn_consensus(
+    obj: Union["AnnData", any],
+    label_col: str = "Consensus_annotation_detailed",
+    embedding_key: str = "X_umap",
+    *,
+    k_neighbors: int = 30,
+    min_neighbor_frac: float = 0.70,     # strong local majority needed
+    max_self_frac: float = 0.30,         # weak support for current label
+    outlier_z: float = 2.0,              # clear outlier vs current centroid
+    min_label_size: int = 30,            # eligible target labels must be common
+    per_label_cap: float = 0.10,         # ≤10% of a source label may flip
+    global_cap: float = 0.05,            # ≤5% of all cells may flip
+    out_col: Optional[str] = None,
+    debug_cols: bool = True,
+):
+    """
+    Safer relabeling via LOCAL KNN CONSENSUS + OUTLIER CHECKS.
+
+    Flip a cell only if:
+      (1) Neighbors strongly agree on a different label (>= min_neighbor_frac), AND
+      (2) Current label has weak local support (<= max_self_frac) OR robust z > outlier_z, AND
+      (3) Candidate label is frequent (>= min_label_size).
+    Applies per-label and global caps to avoid cascades. Writes to `out_col`
+    (default: f"{label_col}_refined_consensus") and keeps the original column intact.
+
+    Returns
+    -------
+    - If obj is AnnData:
+        (n_changed: int, refined_labels: pd.Series, obj, per_label_changes: dict)
+    - If obj is a MissionBio Sample:
+        obj   # modified in place (returns only the sample, per your request)
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    is_anndata = isinstance(obj, AnnData)
+    is_sample  = _is_mosaic_sample(obj)
+    if not (is_anndata or is_sample):
+        raise TypeError("Expected AnnData or missionbio.mosaic.sample.Sample")
+
+    out_col = out_col or f"{label_col}_refined_consensus"
+
+    # --- Get embedding + labels ---
+    if is_anndata:
+        if embedding_key not in obj.obsm:
             raise KeyError(f"Embedding '{embedding_key}' not found in adata.obsm")
-        X = adata.obsm[embedding_key]
-        if isinstance(X, np.matrix):
-            X = np.asarray(X)
-        labels = adata.obs[label_col].astype("category")
-        label_series = labels.astype(str)
+        X = np.asarray(obj.obsm[embedding_key])
+        if label_col not in obj.obs.columns:
+            raise KeyError(f"'{label_col}' not in adata.obs")
+        labels = obj.obs[label_col]
+        was_cat = pd.api.types.is_categorical_dtype(labels)
+        labels_s = labels.astype(str)
+        idx_like = obj.obs_names
     else:
         if "umap" not in obj.protein.row_attrs:
             raise KeyError("Expected 'umap' in Sample.protein.row_attrs")
         X = np.asarray(obj.protein.row_attrs["umap"])
         if X.ndim != 2 or X.shape[1] < 2:
-            raise ValueError("Sample.protein.row_attrs['umap'] must be 2D with ≥2 columns")
+            raise ValueError("'umap' must be 2D with ≥2 columns")
         if label_col not in obj.protein.row_attrs:
-            raise KeyError(f"'{label_col}' not found in Sample.protein.row_attrs")
-        label_arr = np.asarray(obj.protein.row_attrs[label_col]).astype(str)
-        label_series = pd.Series(label_arr)
+            raise KeyError(f"'{label_col}' not in Sample.protein.row_attrs")
+        labels_s = pd.Series(np.asarray(obj.protein.row_attrs[label_col]).astype(str))
+        was_cat = False
+        idx_like = pd.Index(range(X.shape[0]))
 
-    if isinstance(X, np.matrix):
-        X = np.asarray(X)
-    n_cells = X.shape[0]
+    n = X.shape[0]
+    k = max(2, min(k_neighbors, n - 1))
 
-    new_labels = label_series.copy()
-    counts = label_series.value_counts()
-    frequent_labels = counts[counts > min_count].index
+    # --- Frequent labels (eligible targets) ---
+    counts = labels_s.value_counts()
+    frequent = set(counts[counts >= min_label_size].index)
 
-    nn = NearestNeighbors(n_neighbors=min(k_neighbors, n_cells), metric="euclidean")
+    # --- Robust z from current centroids (gate outliers) ---
+    z = np.full(n, np.nan, dtype=float)
+    for lab, idx_lab in labels_s.groupby(labels_s).groups.items():
+        idx_arr = np.fromiter(idx_lab, dtype=int)
+        if idx_arr.size < 3:
+            continue
+        mu = X[idx_arr].mean(axis=0)
+        d = np.linalg.norm(X[idx_arr] - mu, axis=1)
+        med = np.median(d)
+        mad = np.median(np.abs(d - med)) + 1e-12
+        z_vals = (d - med) / (1.4826 * mad)
+        z[idx_arr] = z_vals
+
+    # --- KNN neighbor label distributions ---
+    nn = NearestNeighbors(n_neighbors=k + 1, metric="euclidean")
     nn.fit(X)
+    dists, neigh = nn.kneighbors(X, return_distance=True)
+    # drop self
+    neigh = neigh[:, 1:]
+    neigh = neigh[:, :k]
 
-    allowed_targets = set(frequent_labels) if restrict_to_frequent_targets else set(counts.index)
+    neigh_labels = labels_s.iloc[neigh.reshape(-1)].to_numpy().reshape(n, -1)
+    top_label = []
+    top_frac = np.zeros(n, dtype=float)
+    self_frac = np.zeros(n, dtype=float)
 
-    dist_col = f"{label_col}__centroid_dist"
-    z_col = f"{label_col}__centroid_robust_z"
-    all_dists = np.full(n_cells, np.nan, dtype=float)
-    all_z = np.full(n_cells, np.nan, dtype=float)
+    for i in range(n):
+        vals, ct = np.unique(neigh_labels[i], return_counts=True)
+        order = np.argsort(-ct)
+        vals, ct = vals[order], ct[order]
+        top_label.append(vals[0])
+        top_frac[i] = ct[0] / float(neigh_labels.shape[1])
+        cur = labels_s.iloc[i]
+        self_ct = ct[vals == cur].sum() if np.any(vals == cur) else 0
+        self_frac[i] = self_ct / float(neigh_labels.shape[1])
 
-    n_reassigned = 0
-    for lab in frequent_labels:
-        idx = np.where(label_series.values == lab)[0]
-        if idx.size <= min_count:
-            continue
+    top_label = np.asarray(top_label, dtype=object)
+    margin = top_frac - self_frac
 
-        centroid = X[idx].mean(axis=0)
-        dists = np.linalg.norm(X[idx] - centroid, axis=1)
+    # --- Flip criteria ---
+    cur_labels = labels_s.to_numpy()
+    candidate = top_label
+    flip_mask = (
+        (candidate != cur_labels) &
+        (top_frac >= float(min_neighbor_frac)) &
+        ((self_frac <= float(max_self_frac)) | (z > float(outlier_z))) &
+        (np.isin(candidate, list(frequent)))
+    )
 
-        med = np.median(dists)
-        mad = np.median(np.abs(dists - med)) + 1e-12
-        z = (dists - med) / (1.4826 * mad)
+    to_flip_idx = np.where(flip_mask)[0]
+    if to_flip_idx.size:
+        # strongest evidence first
+        order = np.argsort(-margin[to_flip_idx])
+        to_flip_idx = to_flip_idx[order]
 
-        all_dists[idx] = dists
-        all_z[idx] = z
+        # per-label and global caps
+        final_idx = []
+        per_src_used: Dict[str, int] = {}
+        per_src_cap: Dict[str, int] = {lab: int(np.floor(c * float(per_label_cap))) for lab, c in counts.items()}
 
-        core_frac = (z <= core_z).mean()
-        if core_frac < min_core_fraction:
-            continue
-
-        outlier_mask_local = z > outlier_z
-        if not np.any(outlier_mask_local):
-            continue
-
-        outlier_indices = idx[outlier_mask_local]
-
-        for i in outlier_indices:
-            _, neigh_idx = nn.kneighbors(X[i].reshape(1, -1), return_distance=True)
-            neigh_idx = neigh_idx[0]
-            neigh_idx = neigh_idx[neigh_idx != i]
-
-            neighbor_labels = label_series.iloc[neigh_idx]
-            mode = neighbor_labels.mode()
-            if len(mode) == 0:
+        for i in to_flip_idx:
+            src = cur_labels[i]
+            if per_src_cap.get(src, 0) <= 0:
                 continue
-            candidate = mode.iloc[0]
-            if candidate == label_series.iloc[i]:
-                continue
-            if candidate not in allowed_targets:
-                continue
+            used = per_src_used.get(src, 0)
+            if used < per_src_cap[src]:
+                per_src_used[src] = used + 1
+                final_idx.append(i)
 
-            frac = (neighbor_labels == candidate).mean()
-            if frac >= min_neighbor_frac:
-                new_labels.iloc[i] = candidate
-                n_reassigned += 1
-
-    if is_anndata:
-        obj.obs[out_col] = pd.Categorical(new_labels, categories=np.unique(new_labels))
-        obj.obs[dist_col] = all_dists
-        obj.obs[z_col] = all_z
-        refined_out = obj.obs[out_col]
+        gcap = int(np.floor(n * float(global_cap)))
+        if len(final_idx) > gcap:
+            final_idx = final_idx[:gcap]
     else:
-        obj.protein.row_attrs[out_col] = np.asarray(new_labels.values, dtype=object)
-        obj.protein.row_attrs[dist_col] = all_dists
-        obj.protein.row_attrs[z_col] = all_z
-        refined_out = obj.protein.row_attrs[out_col]
+        final_idx = []
 
-    return n_reassigned, refined_out, obj
+    # --- Build refined labels ---
+    new_labels = labels_s.copy()
+    if final_idx:
+        new_labels.iloc[final_idx] = candidate[final_idx]
+
+    # --- Write back (do not overwrite original column) ---
+    if is_anndata:
+        if was_cat:
+            cats = pd.Index(labels.cat.categories).astype(str)
+            extra = np.setdiff1d(np.unique(new_labels), cats)
+            cats = cats.append(pd.Index(extra))
+            obj.obs[out_col] = pd.Categorical(new_labels, categories=cats)
+        else:
+            obj.obs[out_col] = new_labels
+        if debug_cols:
+            obj.obs[f"{out_col}__knn_top_frac"] = top_frac
+            obj.obs[f"{out_col}__knn_self_frac"] = self_frac
+            obj.obs[f"{out_col}__centroid_robust_z"] = z
+            obj.obs[f"{out_col}__flip"] = False
+            obj.obs.loc[idx_like[np.asarray(final_idx, dtype=int)], f"{out_col}__flip"] = True
+
+        # AnnData: return the rich tuple (unchanged behavior)
+        per_label_changes = {}
+        if final_idx:
+            src_series = pd.Series(cur_labels[np.asarray(final_idx, dtype=int)])
+            per_label_changes = src_series.value_counts().astype(int).to_dict()
+        return int(len(final_idx)), obj.obs[out_col], obj, per_label_changes
+
+    # MissionBio sample: write row_attrs and return ONLY the sample (as requested)
+    obj.protein.row_attrs[out_col] = np.asarray(new_labels.values, dtype=object)
+    if debug_cols:
+        obj.protein.row_attrs[f"{out_col}__knn_top_frac"] = top_frac.astype(float)
+        obj.protein.row_attrs[f"{out_col}__knn_self_frac"] = self_frac.astype(float)
+        obj.protein.row_attrs[f"{out_col}__centroid_robust_z"] = z.astype(float)
+        flip_vec = np.zeros(n, dtype=bool)
+        if final_idx:
+            flip_vec[np.asarray(final_idx, dtype=int)] = True
+        obj.protein.row_attrs[f"{out_col}__flip"] = flip_vec
+
+    return obj  # <— MissionBio path returns just the modified sample
+
 
 # ------------------------------ Cluster Mixedness ------------------------------
 

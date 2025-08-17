@@ -500,12 +500,16 @@ def generate_predictions(
                     continue
                 est_base = _unwrap_estimator(est)
 
-                train_cols = (
-                    bundle.get("columns") or bundle.get("cols")
-                    or getattr(est_base, "feature_names_in_", None)
-                    or _get_shared_features_atlas_only(atlas, data_path, shared_feats_cache)
+                train_cols = _resolve_training_columns(
+                    models_path,                 # this is already a Path above
+                    atlas=str(atlas),
+                    depth=str(depth),
+                    label=str(label),
+                    bundle=bundle,
+                    est_base=est_base,
+                    shared_feats_cache=shared_feats_cache,
+                    data_path=data_path,
                 )
-                train_cols = list(map(str, train_cols))
 
                 scaler = None
                 if base_layer != "Scaled_reads":
@@ -689,7 +693,7 @@ EXCLUDE_ATLAS: Dict[str, Dict[str, set]] = {
         "Mature":   {"Zhang", "Luecken"},
     },
     "Simplified": {
-        "CD4_T":   {"Hao", "Zhang"},
+        "CD4_T":   {"Hao", "Zhang", "Luecken"},
         "CD8_T":   {"Zhang"},
         "Erythroid": {"Triana"},
         "HSPC":    {"Luecken", "Zhang"},
@@ -961,7 +965,7 @@ def add_unweighted_average_tracks(
         created_cols: List[str] = []
 
         for lbl in labels:
-            pred_col = f"{out_prefix}{depth}.{lbl}.predscore"}
+            pred_col = f"{out_prefix}{depth}.{lbl}.predscore"
             nat_col  = f"{out_prefix}{depth}.{lbl}.n_atlases"
 
             if single_passthrough:

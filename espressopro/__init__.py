@@ -32,7 +32,8 @@ from .annotation import (
     Normalise_protein_data,
     Scale_protein_data,
     mark_small_clusters,
-    refine_labels_by_centroid_knn,
+    mark_mixed_clusters,
+    refine_labels_by_knn_consensus,
     clear_annotation,
     score_mixed_clusters,
 )
@@ -46,7 +47,6 @@ except Exception:
 
 # MissionBio
 from .missionbio import (
-    annotate_missionbio_sample,
     suggest_cluster_celltype_identity,
     print_cluster_suggestions,
     visualize_cluster_celltype_frequencies,
@@ -88,9 +88,10 @@ __all__ = [
     "Normalise_protein_data",
     "Scale_protein_data",
     "mark_small_clusters",
-    "refine_labels_by_centroid_knn",
+    "refine_labels_by_knn_consensus",
     "clear_annotation",
     "score_mixed_clusters",
+    "mark_mixed_clusters",
     # MissionBio
     "suggest_cluster_celltype_identity",
     "print_cluster_suggestions",
