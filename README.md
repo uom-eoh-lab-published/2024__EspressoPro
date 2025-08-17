@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/espressopro.svg)](https://badge.fury.io/py/espressopro)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
 **EspressoPro** is a modular toolkit for automated cell-type annotation of single-cell protein data. It ships pre-trained models, atlas consensus blending, and hierarchy-aware voting—plus optional MissionBio integration.
 

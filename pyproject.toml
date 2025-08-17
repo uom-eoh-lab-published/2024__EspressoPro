@@ -9,7 +9,7 @@ authors = [{ name = "Kristian Gurashi", email = "kristian.gurashi@gmail.com" }]
 description = "Modular cell type annotation pipeline for PB/BM-MNCs single-cell protein data"
 readme = "README.md"
 # Use SPDX license expression (no table, no classifier)
-license = "CC-BY-NC-4.0"
+license = "CC-BY-4.0"
 requires-python = ">=3.8"
 classifiers = [
   "Development Status :: 4 - Beta",
