@@ -4,24 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "espressopro"
-version = "1.0.1"
-authors = [
-    {name = "Kristian Gurashi", email = "kristian.gurashi@gmail.com"},
-]
-description = "Modular cell type annotation pipeline for single-cell protein data"
+version = "1.0.0"
+authors = [{ name = "Kristian Gurashi", email = "kristian.gurashi@gmail.com" }]
+description = "Modular cell type annotation pipeline for PB/BM-MNCs single-cell protein data"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research", 
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: CC BY-NC-4.0 License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 keywords = ["single-cell", "cell-type-annotation", "protein", "cytometry", "bioinformatics"]
@@ -47,11 +46,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-missionbio = [
-    # Note: missionbio.mosaic is not available via pip
-    # Install using: conda install -c missionbio missionbio.mosaic
-    # "missionbio.mosaic>=3.0.0",
-]
+missionbio = []  # install MissionBio Mosaic via conda if needed
 dev = [
     "pytest>=6.0",
     "pytest-cov",
@@ -87,19 +82,26 @@ Documentation = "https://espressopro.readthedocs.io"
 Repository = "https://github.com/EspressoKris/EspressoPro"
 "Bug Tracker" = "https://github.com/EspressoKris/EspressoPro/issues"
 
-[project.scripts]
-espressopro = "espressopro.cli:main"
+[tool.setuptools]
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 include = ["espressopro*"]
 
 [tool.setuptools.package-data]
-espressopro = ["data/*", "models/*"]
+espressopro = [
+  "data/**",
+  "**/*.joblib",
+  "**/*.csv",
+]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__/*", "*.py[cod]"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ["py38"]
 
 [tool.mypy]
 python_version = "3.8"
