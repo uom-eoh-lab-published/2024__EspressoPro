@@ -38,35 +38,54 @@ pip install git+https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 
 ## Quick start
 
-### AnnData
-```python
-import scanpy as sc
-import espressopro as ep
-
-adata = sc.read_h5ad("your_data.h5ad")
-ep.annotate_data(adata)  # downloads models on first use
-
-print(adata.obs["Broad.Celltype"].value_counts().head())
-print(adata.obs["Detailed.Celltype"].value_counts().head())
-```
-
 ### MissionBio Sample
 ```python
 import missionbio.mosaic as ms
 import espressopro as ep
 
-sample = ms.load("sample.h5")
-ep.annotate_data(sample)
+# Load and preprocess data
+sample = ms.load("sample.h5")  
+ep.Normalise_protein_data(sample)  
+ep.Scale_protein_data(sample)  
+
+# Dimensionality reduction and clustering
+sample.protein.run_pca(
+    attribute='Normalized_reads', 
+    components=8, show_plot=False, random_state=42, svd_solver='randomized')  
+sample.protein.run_umap(
+    attribute='pca', 
+    random_state=42, n_neighbors=50, min_dist=0.1, spread=8, n_components=2)  
+sample.protein.cluster(
+    attribute='umap', 
+    method='graph-community', k=5, random_state=42)  
+
+# Cell type annotation
+sample = ep.generate_predictions(obj=sample)  
+sample = ep.annotate_data(obj=sample)  
+
+# Quality control and refinement
+sample = ep.mark_small_clusters(sample, "Simplified.Celltype", min_cells=3)
+sample = ep.mark_small_clusters(sample, "Detailed.Celltype", min_cells=3)
+sample = ep.mark_mixed_clusters(sample, "Simplified.Celltype")
+sample = ep.mark_mixed_clusters(sample, "Detailed.Celltype")
+sample = ep.refine_labels_by_knn_consensus(sample, label_col='Detailed.Celltype')
 
 # Optional: add marker-based calls
-ep.add_mast_annotation(sample)
+sample = ep.add_mast_annotation(sample)
+
+# Optional: expand cell type labels to clusters
+sample = ep.suggest_cluster_celltype_identity(
+    sample=sample,
+    annotation="Detailed.Celltype_refined_consensus", rewrite=True)
 ```
+
+**Full tutorial:** [MissionBio_Tapestri.ipynb](https://github.com/uom-eoh-lab-published/2024__EspressoPro/blob/main/tutorials/MissionBio_Tapestri.ipynb)
 
 ## Main API (high level)
 
-- `
+- `generate_predictions(obj)` — ML-based cell type prediction with confidence scores
 - `annotate_data(obj)` — end-to-end annotation (AnnData or MissionBio Sample)  
-- `refine_labels_by_centroid_knn(obj, ...)` — label outlier cleanup  
+- `refine_labels_by_knn_consensus(obj, ...)` — label outlier cleanup via neighbor consensus
 - `add_mast_annotation(obj)` / `add_signature_annotation(obj, ...)` — marker signatures  
 - `score_mixed_clusters(obj, clusters, labels)` — mixedness metrics
 
