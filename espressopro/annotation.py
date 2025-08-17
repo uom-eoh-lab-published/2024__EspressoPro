@@ -12,6 +12,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import warnings, pandas as pd
+warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
 import anndata as ad
 from anndata import AnnData
 from scipy.sparse import isspmatrix, issparse

@@ -81,18 +81,6 @@ sample = ep.suggest_cluster_celltype_identity(
 
 **Full tutorial:** [MissionBio_Tapestri.ipynb](https://github.com/uom-eoh-lab-published/2024__EspressoPro/blob/main/tutorials/MissionBio_Tapestri.ipynb)
 
-## Main API (high level)
-
-- `generate_predictions(obj)` — ML-based cell type prediction with confidence scores
-- `annotate_data(obj)` — end-to-end annotation (AnnData or MissionBio Sample)  
-- `refine_labels_by_knn_consensus(obj, ...)` — label outlier cleanup via neighbor consensus
-- `add_mast_annotation(obj)` / `add_signature_annotation(obj, ...)` — marker signatures  
-- `score_mixed_clusters(obj, clusters, labels)` — mixedness metrics
-
-Results appear in:
-- `Broad.Celltype`, `Simplified.Celltype`, `Detailed.Celltype`  
-- Plus per-class `Averaged.*.<Label>.predscore` tracks
-
 ## Requirements (core)
 
 Python ≥3.8; key libs: `numpy`, `pandas`, `scipy`, `scikit-learn`, `scanpy`, `anndata`, `gdown`.  
