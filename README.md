@@ -19,12 +19,12 @@
 
 **Latest (GitHub):**
 ```bash
-pip install git+https://github.com/EspressoKris/2024__EspressoPro.git
+pip install git+https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 ```
 
 **Dev mode:**
 ```bash
-git clone https://github.com/EspresssoKris/2024__EspressoPro.git
+git clone https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 cd EspressoPro
 pip install -e ".[dev]"
 ```
@@ -33,7 +33,7 @@ pip install -e ".[dev]"
 ```bash
 conda create -n mosaic -c missionbio -c conda-forge   python=3.10 missionbio.mosaic-base=3.12.2 python-kaleido -y
 conda activate mosaic
-pip install git+https://github.com/EspressoKris/2024__EspressoPro.git
+pip install git+https://github.com/uom-eoh-lab-published/2024__EspressoPro.git
 ```
 
 ## Quick start
@@ -82,7 +82,7 @@ MissionBio features require `missionbio.mosaic` (conda).
 ## Documentation
 
 - Docs: <https://espressopro.readthedocs.io>  
-- Repo: <https://github.com/EspressoKris/2024__EspressoPro>
+- Repo: <https://github.com/uom-eoh-lab-published/2024__EspressoPro>
 
 ## Citation
 ```bibtex
@@ -90,7 +90,7 @@ MissionBio features require `missionbio.mosaic` (conda).
   title   = {EspressoPro: Modular cell type annotation pipeline for PB/BM-MNCs single-cell protein data},
   author  = {Gurashi, Kristian},
   year    = {2025},
-  url     = {https://github.com/EspressoKris/2024__EspressoPro},
+  url     = {https://github.com/uom-eoh-lab-published/2024__EspressoPro},
   version = {1.0.0}
 }
 ```

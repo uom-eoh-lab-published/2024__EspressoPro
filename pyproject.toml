@@ -56,9 +56,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/EspressoKris/2024__EspressoPro"
+Homepage = "https://github.com/uom-eoh-lab-published/2024__EspressoPro"
 Documentation = "https://espressopro.readthedocs.io"
-Repository = "https://github.com/EspressoKris/2024__EspressoPro"
+Repository = "https://github.com/uom-eoh-lab-published/2024__EspressoPro"
 
 [tool.setuptools]
 include-package-data = true
