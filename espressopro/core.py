@@ -19,20 +19,31 @@ MODELS_SUBPATH = Path("Pre_trained_models") / ATLAS_NAME
 
 
 # ----------------------------- Download & extract -----------------------------
+from pathlib import Path
+from typing import Optional
+import shutil, tarfile, zipfile, tempfile, urllib.request, sys
+
+# expects MODELS_SUBPATH defined elsewhere
 
 def download_models(
     *,
     force: bool = False,
-    gdrive_id: str = "14WXiv6Ap78Eu3JgI1Cw7YlJI1G3l9poo",
-    gdrive_url: Optional[str] = "https://drive.google.com/file/d/14WXiv6Ap78Eu3JgI1Cw7YlJI1G3l9poo/view?usp=sharing",
+    url: str = "https://prod-dcd-datasets-public-files-eu-west-1.s3.eu-west-1.amazonaws.com/7f5b44ae-7fc4-4def-9b8b-be467f5be292",
     local_archive: Optional[str] = None,
 ) -> Path:
     """
     Download and extract pre-trained models under <pkg>/data/Pre_trained_models/<ATLAS_NAME>.
     Returns the package data directory.
+
+    Notes
+    -----
+    - Downloads from a direct HTTPS link (S3); no Google Drive dependency.
+    - Supports .tar, .tar.gz, .tar.xz, and .zip archives.
+    - Safe extraction (prevents path traversal).
     """
+
     script_dir = Path(__file__).parent.resolve()
-    data_dir = script_dir / "data"
+    data_dir   = script_dir / "data"
     models_root = data_dir / MODELS_SUBPATH
 
     if not force and models_root.exists() and any(models_root.rglob("*_Stacked.joblib")):
@@ -41,13 +52,22 @@ def download_models(
 
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    def _safe_extract(tar: tarfile.TarFile, path: Path) -> None:
+    # --------- safe extraction helpers ----------
+    def _safe_extract_tar(tar: tarfile.TarFile, path: Path) -> None:
         base = path.resolve()
         for m in tar.getmembers():
             target = (path / m.name).resolve()
             if not str(target).startswith(str(base)):
                 raise RuntimeError(f"Blocked path traversal in tar member: {m.name}")
         tar.extractall(path)
+
+    def _safe_extract_zip(zf: zipfile.ZipFile, path: Path) -> None:
+        base = path.resolve()
+        for m in zf.infolist():
+            target = (path / m.filename).resolve()
+            if not str(target).startswith(str(base)):
+                raise RuntimeError(f"Blocked path traversal in zip member: {m.filename}")
+        zf.extractall(path)
 
     def _merge_into_data(extracted_root: Path) -> None:
         # accept top-level 'data/' or flat roots
@@ -65,13 +85,25 @@ def download_models(
     def _extract_archive(archive_path: Path) -> None:
         print(f"[download_models] Extracting: {archive_path}")
         with tempfile.TemporaryDirectory() as tdir:
-            tdirp = Path(tdir)
-            out = tdirp / "extract"
+            out = Path(tdir) / "extract"
             out.mkdir(parents=True, exist_ok=True)
-            with tarfile.open(archive_path, "r:*") as tar:
-                _safe_extract(tar, out)
+
+            # Try tar, then zip
+            try:
+                if tarfile.is_tarfile(archive_path):
+                    with tarfile.open(archive_path, "r:*") as tar:
+                        _safe_extract_tar(tar, out)
+                elif zipfile.is_zipfile(archive_path):
+                    with zipfile.ZipFile(archive_path) as zf:
+                        _safe_extract_zip(zf, out)
+                else:
+                    raise RuntimeError("Unknown archive format (not tar/zip).")
+            except Exception as e:
+                raise RuntimeError(f"Failed to extract archive: {e}") from e
+
             _merge_into_data(out)
 
+    # --------- main download/extract path ----------
     if local_archive:
         p = Path(local_archive)
         if not p.exists():
@@ -79,31 +111,30 @@ def download_models(
         _extract_archive(p)
     else:
         try:
-            import gdown
             with tempfile.TemporaryDirectory() as tdir:
-                tdirp = Path(tdir)
-                tmpfile = tdirp / "models.tar.xz"
-                print("[download_models] Downloading pre-trained models from Google Drive (~900MB)...")
+                tmpfile = Path(tdir) / "models.archive"
+                print(f"[download_models] Downloading pre-trained models from {url} ...")
 
-                ok = False
-                try:
-                    gdown.download(id=gdrive_id, output=str(tmpfile), quiet=False)
-                    ok = tmpfile.exists() and tmpfile.stat().st_size > 0
-                except Exception as e:
-                    print(f"[download_models] gdown by id failed: {e}")
+                # stream download with basic progress
+                with urllib.request.urlopen(url) as resp, open(tmpfile, "wb") as fh:
+                    total = resp.length or 0
+                    read = 0
+                    block = 1024 * 1024
+                    while True:
+                        chunk = resp.read(block)
+                        if not chunk:
+                            break
+                        fh.write(chunk)
+                        read += len(chunk)
+                        if total:
+                            pct = 100 * read / total
+                            sys.stdout.write(f"\r  {read/1e6:8.1f} MB / {total/1e6:8.1f} MB ({pct:5.1f}%)")
+                            sys.stdout.flush()
+                    if total:
+                        sys.stdout.write("\n")
 
-                if (not ok) and gdrive_url:
-                    try:
-                        gdown.download(url=gdrive_url, output=str(tmpfile), quiet=False, fuzzy=True)
-                        ok = tmpfile.exists() and tmpfile.stat().st_size > 0
-                    except Exception as e:
-                        print(f"[download_models] gdown by url failed: {e}")
-
-                if not ok:
-                    raise RuntimeError(
-                        "Unable to fetch the public link. Make the Drive file public or pass "
-                        "download_models(local_archive='/abs/path/models.tar.xz')."
-                    )
+                if not tmpfile.exists() or tmpfile.stat().st_size == 0:
+                    raise RuntimeError("Download produced an empty file.")
 
                 _extract_archive(tmpfile)
 
@@ -113,6 +144,7 @@ def download_models(
             print(f"  {models_root}")
             print("Or re-run with a local archive:")
             print("  download_models(local_archive='/abs/path/models.tar.xz')")
+            # fall through to final check
 
     if models_root.exists() and any(models_root.rglob("*_Stacked.joblib")):
         print(f"[download_models] Models ready at {models_root}")
