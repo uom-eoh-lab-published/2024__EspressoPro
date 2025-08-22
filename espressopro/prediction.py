@@ -26,8 +26,6 @@ from .core import (
 )
 from .constants import SIMPLIFIED_CLASSES, _DETAILED_LABELS
 
-# ---------------------------- helpers ----------------------------
-
 def _dense(arr):
     return arr.toarray() if sp.issparse(arr) else np.asarray(arr)
 
@@ -167,7 +165,6 @@ def _get_group_scaler(cell_dict: Dict[str, Any]) -> Tuple[Optional[Any], bool]:
     return first, True
 
 def _maybe_load_temp_scaler(models_for_atlas: Mapping, depth: str, atlas: str, data_path: str):
-    """Find a multiclass TemperatureScaling object."""
     if depth in models_for_atlas and isinstance(models_for_atlas[depth], dict):
         d = models_for_atlas[depth]
         if "__TEMP_SCALER__" in d:
@@ -226,8 +223,6 @@ def _resolve_training_columns(
     if cols is not None:
         return cols
     return _get_shared_features_atlas_only(atlas, data_path, shared_feats_cache)
-
-# ---------- schema auditor ----------
 
 def audit_feature_overlap(
     obj: Union["AnnData", Any],
@@ -335,8 +330,6 @@ def _preview_rescale_pair(
     print("  means  before → after:", dict(zip(cols, zip(b_mean.tolist(), a_mean.tolist()))))
     print("  stddev before → after:", dict(zip(cols, zip(b_std.tolist(),  a_std.tolist()))))
 
-# ---------------------------- track pruning ----------------------------
-
 _ATLAS_NAMES = ("Hao", "Triana", "Zhang", "Luecken")
 
 def _prune_existing_tracks(
@@ -355,13 +348,10 @@ def _prune_existing_tracks(
         atlas_prefixes_to_drop.append(f"{a}.")
 
     def _should_drop_key(k: str) -> bool:
-        # drop any legacy "Atlas.*" keys
         if k.startswith("Atlas."):
             return True
-        # drop per-atlas we’re not keeping
         if any(k.startswith(p) for p in atlas_prefixes_to_drop):
             return True
-        # optionally drop Averaged.* and Best*.*
         if drop_averaged and (k.startswith("Averaged.") or k.startswith("Averaged.Unweighted.")):
             return True
         if drop_best and (k.startswith("BestBroad.") or k.startswith("BestSimplified.") or k.startswith("BestDetailed.")):
@@ -389,9 +379,6 @@ def _prune_existing_tracks(
             except Exception:
                 pass
 
-
-# ---------------------------- main API ----------------------------
-
 def generate_predictions(
     obj: Union["AnnData", Any],
     models_path: Optional[Union[str, Path]] = None,
@@ -405,7 +392,6 @@ def generate_predictions(
     add_consensus: bool = True,
     consensus_prefix: str = "Averaged.",
     consensus_normalize: bool = True,
-    # ↓↓↓ DO NOT write unweighted tracks by default
     add_unweighted: bool = False,
     unweighted_prefix: str = "Averaged.Unweighted.",
     unweighted_normalize: bool = True,
@@ -460,15 +446,13 @@ def generate_predictions(
     is_anndata = (AnnData is not None and isinstance(obj, AnnData))
     is_sample  = hasattr(obj, "protein") and hasattr(obj.protein, "get_attribute")
 
-    # prune legacy outputs, including any "Atlas.*" keys
     _prune_existing_tracks(
         obj,
         keep_atlases=(requested if requested is not None else _ATLAS_NAMES),
-        drop_averaged=False,  # keep previous Averaged.* if present
+        drop_averaged=False,
         drop_best=True,
     )
 
-    # ---- build query df
     if is_sample:
         try:
             query_df = _make_query_df(obj, mosaic_layer=base_layer)
@@ -491,7 +475,6 @@ def generate_predictions(
     shared_feats_cache: Dict[str, List[str]] = {}
     probs_store: Dict[Tuple[str, str], Tuple[np.ndarray, List[str]]] = {}
 
-    # PASS 1: per (atlas, depth) OvR with scaling
     for atlas, depth_map in models.items():
         if not isinstance(depth_map, dict):
             continue
@@ -564,7 +547,6 @@ def generate_predictions(
                 P_raw = np.hstack(ovr_cols)
                 probs_store[(atlas, depth)] = (P_raw, cell_labels)
 
-    # PASS 2: multiclass calibration + write outputs (per-atlas)
     for (atlas, depth), (P_raw, cell_labels) in probs_store.items():
         ts_scaler = _maybe_load_temp_scaler(models.get(atlas, {}), depth, atlas, str(data_path))
 
@@ -589,7 +571,6 @@ def generate_predictions(
         else:
             P_mc = _row_normalize(P_raw)
 
-        # -- write per-atlas label scores (NO 'Atlas.' prefix)
         if is_anndata:
             for j, lab in enumerate(cell_labels):
                 obj.obs[f"{atlas}.{depth}.{lab}.predscore"] = pd.Series(P_mc[:, j], index=row_index, dtype=float)
@@ -597,7 +578,6 @@ def generate_predictions(
             for j, lab in enumerate(cell_labels):
                 obj.protein.row_attrs[f"{atlas}.{depth}.{lab}.predscore"] = P_mc[:, j].astype(float)
 
-        # -- per-atlas summaries (.pred/.conf) and also .Celltype / .Celltype.TopScore
         winner_idx = np.asarray(P_mc).argmax(axis=1)
         winner_lab = np.array([cell_labels[i] for i in winner_idx], dtype=object)
         winner_conf = P_mc[np.arange(P_mc.shape[0]), winner_idx]
@@ -606,17 +586,14 @@ def generate_predictions(
             obj.obsm[f"{atlas}.{depth}.probs"] = pd.DataFrame(P_mc, index=row_index, columns=cell_labels)
             obj.obs[f"{atlas}.{depth}.pred"] = pd.Categorical(winner_lab, categories=cell_labels)
             obj.obs[f"{atlas}.{depth}.conf"] = winner_conf.astype(float)
-            # aliases requested
             obj.obs[f"{atlas}.{depth}.Celltype"] = obj.obs[f"{atlas}.{depth}.pred"].astype(object)
             obj.obs[f"{atlas}.{depth}.Celltype.TopScore"] = obj.obs[f"{atlas}.{depth}.conf"].astype(float)
         else:
             obj.protein.row_attrs[f"{atlas}.{depth}.pred"] = winner_lab.astype(str)
             obj.protein.row_attrs[f"{atlas}.{depth}.conf"] = winner_conf.astype(float)
-            # aliases requested
             obj.protein.row_attrs[f"{atlas}.{depth}.Celltype"] = winner_lab.astype(str)
             obj.protein.row_attrs[f"{atlas}.{depth}.Celltype.TopScore"] = winner_conf.astype(float)
 
-    # PASS 3: averaged (consensus) tracks only (no unweighted unless explicitly requested)
     if add_consensus or add_unweighted:
         used_atlases = sorted({atl for (atl, _depth) in probs_store.keys()})
         if not used_atlases:
@@ -645,7 +622,6 @@ def generate_predictions(
                     apply_exclusions=use_exclusions,
                 )
 
-        # keep feature available but default to False; nothing is written unless user opts in
         if add_unweighted:
             if is_anndata:
                 add_unweighted_average_tracks(
@@ -667,9 +643,6 @@ def generate_predictions(
                 )
 
     return obj
-
-
-# ---------------------------- optional: best localised tracks ----------------------------
 
 def _local_dispersion(vals: np.ndarray, coords: np.ndarray, k: int = 15, p: int = 2, eps: float = 1e-9) -> np.ndarray:
     tree = KDTree(coords, metric="minkowski", p=p)
@@ -708,8 +681,6 @@ def _best_localised_score(
         if med < best_med:
             best_med, best_vec, best_atl = med, x, atl
     return best_atl, best_vec
-
-# ---------------------------- consensus-weighted tracks ----------------------------
 
 EXCLUDE_ATLAS: Dict[str, Dict[str, set]] = {
     "Broad": {
@@ -1082,8 +1053,6 @@ def add_unweighted_average_tracks_sample(
             Xn = X / rs
             for j, key in enumerate(created_keys):
                 sample.protein.row_attrs[key] = Xn[:, j].astype(float)
-
-# ---------------------------- Best-localised tracks ----------------------------
 
 def add_best_localised_tracks(
     adata: AnnData,

@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import os
+import sys
 import shutil
 import tarfile
 import tempfile
+import urllib.request
+import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Union
@@ -17,13 +20,6 @@ import pandas as pd
 ATLAS_NAME = "TotalSeqD_Heme_Oncology_CAT399906"
 MODELS_SUBPATH = Path("Pre_trained_models") / ATLAS_NAME
 
-
-# ----------------------------- Download & extract -----------------------------
-from pathlib import Path
-from typing import Optional
-import shutil, tarfile, zipfile, tempfile, urllib.request, sys
-
-# expects MODELS_SUBPATH defined elsewhere
 
 def download_models(
     *,
@@ -43,7 +39,7 @@ def download_models(
     """
 
     script_dir = Path(__file__).parent.resolve()
-    data_dir   = script_dir / "data"
+    data_dir = script_dir / "data"
     models_root = data_dir / MODELS_SUBPATH
 
     if not force and models_root.exists() and any(models_root.rglob("*_Stacked.joblib")):
@@ -52,7 +48,6 @@ def download_models(
 
     data_dir.mkdir(parents=True, exist_ok=True)
 
-    # --------- safe extraction helpers ----------
     def _safe_extract_tar(tar: tarfile.TarFile, path: Path) -> None:
         base = path.resolve()
         for m in tar.getmembers():
@@ -70,7 +65,6 @@ def download_models(
         zf.extractall(path)
 
     def _merge_into_data(extracted_root: Path) -> None:
-        # accept top-level 'data/' or flat roots
         candidates = [p for p in extracted_root.iterdir() if p.is_dir() and p.name.lower() == "data"]
         roots = candidates or [extracted_root]
         for root in roots:
@@ -87,8 +81,6 @@ def download_models(
         with tempfile.TemporaryDirectory() as tdir:
             out = Path(tdir) / "extract"
             out.mkdir(parents=True, exist_ok=True)
-
-            # Try tar, then zip
             try:
                 if tarfile.is_tarfile(archive_path):
                     with tarfile.open(archive_path, "r:*") as tar:
@@ -100,10 +92,8 @@ def download_models(
                     raise RuntimeError("Unknown archive format (not tar/zip).")
             except Exception as e:
                 raise RuntimeError(f"Failed to extract archive: {e}") from e
-
             _merge_into_data(out)
 
-    # --------- main download/extract path ----------
     if local_archive:
         p = Path(local_archive)
         if not p.exists():
@@ -114,8 +104,6 @@ def download_models(
             with tempfile.TemporaryDirectory() as tdir:
                 tmpfile = Path(tdir) / "models.archive"
                 print(f"[download_models] Downloading pre-trained models from {url} ...")
-
-                # stream download with basic progress
                 with urllib.request.urlopen(url) as resp, open(tmpfile, "wb") as fh:
                     total = resp.length or 0
                     read = 0
@@ -132,19 +120,15 @@ def download_models(
                             sys.stdout.flush()
                     if total:
                         sys.stdout.write("\n")
-
                 if not tmpfile.exists() or tmpfile.stat().st_size == 0:
                     raise RuntimeError("Download produced an empty file.")
-
                 _extract_archive(tmpfile)
-
         except Exception as e:
             print(f"[download_models] Failed to download models: {e}")
             print("[download_models] Place the extracted folder at:")
             print(f"  {models_root}")
             print("Or re-run with a local archive:")
             print("  download_models(local_archive='/abs/path/models.tar.xz')")
-            # fall through to final check
 
     if models_root.exists() and any(models_root.rglob("*_Stacked.joblib")):
         print(f"[download_models] Models ready at {models_root}")
@@ -153,14 +137,12 @@ def download_models(
     return data_dir
 
 
-# -------------------------------- Path helpers --------------------------------
-
 def _candidate_models_dirs() -> list[Path]:
     """Likely locations for …/Pre_trained_models/<ATLAS_NAME>."""
     here = Path(__file__).parent.resolve()
     pkg_data = here / "data"
     repo_data = here.parent / "data"
-    repo_Data = here.parent / "Data"  # allow uppercase in dev repos
+    repo_Data = here.parent / "Data"
     return [
         pkg_data / MODELS_SUBPATH,
         repo_data / MODELS_SUBPATH,
@@ -170,10 +152,7 @@ def _candidate_models_dirs() -> list[Path]:
 
 
 def ensure_models_available(*, local_archive: Optional[str] = None, force: bool = False) -> Path:
-    """
-    Ensure models exist; attempt to download if missing.
-    Returns the package data directory.
-    """
+    """Ensure models exist; attempt to download if missing. Returns the package data directory."""
     env_models = os.environ.get("ESPRESSOPRO_MODELS")
     if env_models:
         p = Path(env_models).expanduser()
@@ -266,8 +245,6 @@ def get_package_data_path() -> Path:
     return ensure_models_available()
 
 
-# --------------------------------- Model loader ---------------------------------
-
 def load_models(
     models_path: Union[str, Path],
     model_names: Sequence[str] = ("Hao", "Zhang", "Triana", "Luecken"),
@@ -275,15 +252,18 @@ def load_models(
 ) -> Dict[str, Mapping]:
     """
     Load pre-trained models from:
-      <models_path>/<atlas>/Models/<Depth>_<CellLabel>/*
+      <models_path>/<atlas>/Models/<Depth>_<CellLabel>/
     Also loads optional per-depth or atlas-wide temperature scalers.
     """
+
     def _safe_load_joblib(path: Path):
         try:
-            if (not path.is_file()
+            if (
+                not path.is_file()
                 or path.name.startswith("._")
                 or path.name == ".DS_Store"
-                or path.stat().st_size == 0):
+                or path.stat().st_size == 0
+            ):
                 return None
         except Exception:
             return None
@@ -316,8 +296,12 @@ def load_models(
                 if bundle_obj.get(k) is not None:
                     into["scaler"] = bundle_obj[k]
                     break
-            cols = (bundle_obj.get("columns") or bundle_obj.get("cols")
-                    or bundle_obj.get("feature_names") or bundle_obj.get("feature_names_in_"))
+            cols = (
+                bundle_obj.get("columns")
+                or bundle_obj.get("cols")
+                or bundle_obj.get("feature_names")
+                or bundle_obj.get("feature_names_in_")
+            )
             if cols is not None:
                 into["columns"] = list(map(str, cols))
         else:
@@ -357,7 +341,6 @@ def load_models(
 
             entry = models[atlas][depth].setdefault(cell, {})
 
-            # Prefer bundle
             used_bundle = False
             for bf in _good_joblibs(cell_dir.glob("*bundle*.joblib")):
                 bobj = _safe_load_joblib(bf)
@@ -367,7 +350,6 @@ def load_models(
                 used_bundle = True
                 break
 
-            # Separate artifacts
             if not used_bundle:
                 for jf in _good_joblibs(cell_dir.glob("*_Stacked.joblib")):
                     m = _safe_load_joblib(jf)
